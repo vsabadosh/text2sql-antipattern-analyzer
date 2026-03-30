@@ -4,7 +4,7 @@ SQL antipattern detector for Text-to-SQL datasets. Config-driven streaming pipel
 
 ## Features
 
-- **15 antipattern detectors** covering critical, high, medium, and low severity levels
+- **14 antipattern detectors** covering critical, high, medium, and low severity levels. unsafe_update_delete is counted as two antipatterns.
 - **Configurable per-dialect** (SQLite, PostgreSQL) antipattern sets and severity penalties
 - **Quality scoring** (0–100) with classification: excellent / good / fair / poor
 - **Streaming pipeline** — processes datasets of any size without loading into memory
@@ -15,12 +15,24 @@ SQL antipattern detector for Text-to-SQL datasets. Config-driven streaming pipel
 
 ```bash
 # Install
+python3.11 -m venv .venv
+source .venv/bin/activate
+
+# Install package
 pip install -e .
+
+# Optional: progress bar support
+pip install -e '.[progress]'
+
+# Optional: development tools
+pip install -e '.[dev]'
+pip install -e ".[dev,progress]"
+pip install --upgrade --force-reinstall -e ".[dev,progress]"
 
 # Run analysis
 text2sql-antipattern run -c configs/pipeline.example.yaml
 
-# Generate report from existing metrics
+# Optionally you can regenerate report from existing metrics
 text2sql-antipattern report --config configs/pipeline.example.yaml
 ```
 
