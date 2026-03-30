@@ -1,0 +1,2 @@
+[console_scripts]
+text2sql-antipattern = text2sql_antipattern.cli.main:main
