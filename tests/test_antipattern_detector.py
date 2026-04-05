@@ -1237,6 +1237,47 @@ class TestNullComparisonEqualsAntipattern:
         assert result.has_null_comparison_equals is True
         assert result.has_not_in_nullable is False
 
+    def test_update_set_null_not_flagged_as_null_comparison(self):
+        """
+        SET col = NULL is an assignment, not a predicate comparison.
+        It must not trigger null_comparison_equals.
+        """
+        sql = "UPDATE Production SET GasQuantity = NULL WHERE GasQuantity < 1000;"
+        result = detect_antipatterns(sql)
+        assert result.has_null_comparison_equals is False
+        assert not any(ap.pattern == "null_comparison_equals" for ap in result.antipatterns)
+
+    def test_update_set_null_with_subquery_where_not_flagged(self):
+        """Assignment to NULL should stay unflagged even with complex WHERE."""
+        sql = (
+            "UPDATE Claims SET ClaimAmount = NULL "
+            "WHERE PolicyID IN (SELECT PolicyID FROM Policy WHERE PolicyType = 'Life');"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_null_comparison_equals is False
+        assert not any(ap.pattern == "null_comparison_equals" for ap in result.antipatterns)
+
+    def test_update_set_null_but_where_equals_null_flagged(self):
+        """
+        Ensure we still flag true predicate misuse in WHERE when SET contains NULL assignment.
+        """
+        sql = "UPDATE users SET status = NULL WHERE deleted_at = NULL;"
+        result = detect_antipatterns(sql)
+        assert result.has_null_comparison_equals is True
+        assert any(ap.pattern == "null_comparison_equals" for ap in result.antipatterns)
+
+    def test_delete_including_null_in_in_list_still_flagged(self):
+        """IN (..., NULL) remains a null_comparison_equals issue by design."""
+        sql = (
+            "DELETE FROM WAFlowerPrices "
+            "WHERE PricePerGram IN (0, NULL) "
+            "AND ProducerID IN (SELECT ProducerID FROM WAProducers WHERE State = 'Washington') "
+            "AND PriceDate >= '2021-08-01';"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_null_comparison_equals is True
+        assert any(ap.pattern == "null_comparison_equals" for ap in result.antipatterns)
+
 
 class TestCartesianProductAntipattern:
     def test_cartesian_product_comma_separated(self):
@@ -3222,6 +3263,336 @@ class TestCorrelatedSubqueryAntipattern:
 
         assert result.has_correlated_subquery is False
         assert all(ap.pattern != "correlated_subquery" for ap in result.antipatterns)
+
+
+class TestGretelManualRecheckRegressions:
+    """
+    Regression tests derived from gretel_top20_per_group_manual_recheck.jsonl.
+
+    Each test corresponds to a specific SQL that was either a false-positive
+    (detector wrongly flagged) or a false-negative (detector missed).
+    """
+
+    # ================================================================
+    # Missing GROUP BY — FALSE POSITIVES (should NOT be flagged)
+    # ================================================================
+
+    def test_filter_aggregate_only_no_group_by_needed_item34(self):
+        """COUNT(*) FILTER (...) is still an aggregate; no bare columns in SELECT."""
+        sql = (
+            "SELECT (COUNT(*) FILTER (WHERE hashtags LIKE '%#renewableenergy%')) "
+            "* 100.0 / COUNT(*) as percentage "
+            "FROM posts WHERE country = 'United States'"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_missing_group_by is False
+
+    def test_filter_aggregate_female_percentage_item389(self):
+        """Pure aggregate with FILTER clause — no GROUP BY required."""
+        sql = (
+            "SELECT (COUNT(*) FILTER (WHERE gender = 'Female')) * 100.0 / COUNT(*) "
+            "as female_percentage FROM fans"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_missing_group_by is False
+
+    def test_window_row_number_with_proper_group_by_item56(self):
+        """ROW_NUMBER() OVER (...) alongside grouped columns should not trigger."""
+        sql = (
+            "SELECT d.city, SUM(d.revenue) as total_revenue, "
+            "ROW_NUMBER() OVER (ORDER BY SUM(d.revenue) DESC) as rank "
+            "FROM Dispensaries d WHERE d.state = 'Colorado' "
+            "GROUP BY d.city HAVING COUNT(d.city) > 1 ORDER BY rank LIMIT 5"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_missing_group_by is False
+
+    def test_lag_window_with_proper_group_by_item94(self):
+        """LAG() OVER (...) wrapping AVG() with complete GROUP BY should not trigger."""
+        sql = (
+            "SELECT Continent, "
+            "(AVG(CO2Emission / Population) - "
+            "LAG(AVG(CO2Emission / Population)) OVER (PARTITION BY Continent ORDER BY Year)) "
+            "* 100.0 / LAG(AVG(CO2Emission / Population)) OVER (PARTITION BY Continent ORDER BY Year) "
+            "as PercentageChange "
+            "FROM EmissionsData GROUP BY Continent, Year"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_missing_group_by is False
+
+    def test_rank_window_with_proper_group_by_item285(self):
+        """RANK() OVER (...) alongside GROUP BY country should not trigger."""
+        sql = (
+            "SELECT country, SUM(amount) AS total_expenditure, "
+            "RANK() OVER (ORDER BY SUM(amount) DESC) as rank "
+            "FROM rd_expenditures WHERE drug_name = 'DrugY' "
+            "GROUP BY country ORDER BY rank ASC LIMIT 3"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_missing_group_by is False
+
+    def test_row_number_window_with_group_by_item413(self):
+        """ROW_NUMBER() OVER (...) with correct GROUP BY should not trigger."""
+        sql = (
+            "SELECT country, COUNT(event) as event_count, "
+            "ROW_NUMBER() OVER (ORDER BY COUNT(event) DESC) as host_rank "
+            "FROM DefenseDiplomacyEvents "
+            "WHERE country LIKE 'Africa%' AND year >= 2016 "
+            "GROUP BY country ORDER BY host_rank"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_missing_group_by is False
+
+    def test_row_number_window_with_having_item625(self):
+        """Window function with GROUP BY and HAVING should not trigger."""
+        sql = (
+            "SELECT CuisineType, AVG(TotalRevenue) as AvgRevenue, "
+            "ROW_NUMBER() OVER (ORDER BY AVG(TotalRevenue) DESC) as Rank "
+            "FROM Restaurants GROUP BY CuisineType HAVING COUNT(*) >= 2"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_missing_group_by is False
+
+    def test_lag_sum_window_with_group_by_item119(self):
+        """LAG(SUM(...)) OVER (...) with proper GROUP BY should not trigger."""
+        sql = (
+            "SELECT Program, "
+            "LAG(SUM(Hours), 1) OVER (PARTITION BY Program ORDER BY DATE_TRUNC('month', VolunteerHourDate)) "
+            "AS PreviousMonthHours, "
+            "SUM(Hours) AS CurrentMonthHours "
+            "FROM VolunteerHours "
+            "GROUP BY Program, DATE_TRUNC('month', VolunteerHourDate) "
+            "ORDER BY VolunteerHourDate"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_missing_group_by is False
+
+    # ================================================================
+    # Missing GROUP BY — TRUE POSITIVES (bare cols in window must be flagged)
+    # ================================================================
+
+    def test_bare_col_in_window_partition_by_not_in_group_by(self):
+        """Bare column in PARTITION BY that is not in GROUP BY must be flagged."""
+        sql = (
+            "SELECT col1, SUM(col2), "
+            "ROW_NUMBER() OVER (PARTITION BY col4 ORDER BY SUM(col2) DESC) as rn "
+            "FROM t GROUP BY col1"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_missing_group_by is True
+
+    def test_bare_col_in_window_order_by_not_in_group_by(self):
+        """Bare column in window ORDER BY that is not in GROUP BY must be flagged."""
+        sql = (
+            "SELECT col1, SUM(col2), "
+            "RANK() OVER (ORDER BY col3 DESC) as rn "
+            "FROM t GROUP BY col1"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_missing_group_by is True
+
+    # ================================================================
+    # = NULL comparison — ALREADY FIXED (regression guards)
+    # ================================================================
+
+    def test_update_set_null_simple_item20765(self):
+        """SET col = NULL is assignment, not comparison — must not flag."""
+        sql = "UPDATE Production SET GasQuantity = NULL WHERE GasQuantity < 1000"
+        result = detect_antipatterns(sql)
+        assert result.has_null_comparison_equals is False
+
+    def test_update_set_null_with_in_subquery_item29002(self):
+        """SET col = NULL with complex WHERE must not flag null comparison."""
+        sql = (
+            "UPDATE Claims SET ClaimAmount = NULL "
+            "WHERE PolicyID IN (SELECT PolicyID FROM Policy WHERE PolicyType = 'Life')"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_null_comparison_equals is False
+
+    def test_in_list_with_null_still_flagged_item58219(self):
+        """IN (0, NULL) should still be flagged: NULL in value list never matches."""
+        sql = (
+            "DELETE FROM WAFlowerPrices WHERE PricePerGram IN (0, NULL) "
+            "AND ProducerID IN (SELECT ProducerID FROM WAProducers WHERE State = 'Washington') "
+            "AND PriceDate >= '2021-08-01'"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_null_comparison_equals is True
+
+    # ================================================================
+    # Cartesian product — CORRECTLY DETECTED (file recheck was wrong)
+    # ================================================================
+
+    def test_join_on_clause_not_referencing_joined_table_item3642(self):
+        """JOIN crimes ON n.nid = c.neighborhood_id — crimes not in ON → cartesian."""
+        sql = (
+            "SELECT n.name, COUNT(c.id) "
+            "FROM cities c "
+            "JOIN neighborhoods n ON c.cid = n.city_id "
+            "JOIN crimes ON n.nid = c.neighborhood_id "
+            "WHERE c.name = 'CityName' GROUP BY n.name"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_join_on_constant_condition_item5464(self):
+        """JOIN Products ON r.RegionID = 1 — constant filter, no real join → cartesian."""
+        sql = (
+            "SELECT r.RegionName, p.ProductName, SUM(p.QuantitySold) as TotalQuantitySold "
+            "FROM Regions r JOIN Products p ON r.RegionID = 1 "
+            "GROUP BY r.RegionName, p.ProductName HAVING p.Meat = true"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    # ================================================================
+    # LIMIT without ORDER BY — CORRECTLY DETECTED (file recheck was wrong)
+    # ================================================================
+
+    def test_limit_with_window_order_by_not_outer_item2852(self):
+        """RANK() OVER (ORDER BY ...) does not substitute outer ORDER BY."""
+        sql = (
+            "SELECT country, num_tours, "
+            "RANK() OVER (ORDER BY num_tours DESC) AS tour_rank "
+            "FROM cultural_tour_count WHERE num_tours >= 600 LIMIT 3"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_limit_without_order_by is True
+
+    def test_limit_on_outer_query_wrapping_ordered_subquery_item5501(self):
+        """Outer LIMIT without ORDER BY even though subquery has ORDER BY."""
+        sql = (
+            "SELECT * FROM ("
+            "SELECT * FROM project_info WHERE category = 'Dam Construction' "
+            "ORDER BY cost DESC"
+            ") subquery LIMIT 5"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_limit_without_order_by is True
+
+    def test_row_number_window_order_not_outer_order_item8782(self):
+        """ROW_NUMBER() OVER (ORDER BY ...) does not act as outer ORDER BY."""
+        sql = (
+            "SELECT vessel_name, caught_waste, "
+            "ROW_NUMBER() OVER (ORDER BY caught_waste DESC) as rank "
+            "FROM waste_vessels WHERE ocean = 'Pacific Ocean' LIMIT 2"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_limit_without_order_by is True
+
+    def test_subquery_limit_without_order_item12730(self):
+        """Subquery with LIMIT 5 but no ORDER BY — non-deterministic subset."""
+        sql = (
+            "SELECT i.investor, SUM(ir.funding_amount) as total_funding "
+            "FROM investment_round ir "
+            "JOIN startup s ON ir.startup_id = s.id "
+            "JOIN (SELECT startup_id FROM startup WHERE industry = 'Fintech' "
+            "GROUP BY startup_id LIMIT 5) top_startups "
+            "ON ir.startup_id = top_startups.startup_id "
+            "GROUP BY i.investor ORDER BY total_funding DESC"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_limit_without_order_by is True
+
+    # ================================================================
+    # SELECT * in EXISTS — CORRECTLY DETECTED (file recheck was wrong)
+    # ================================================================
+
+    def test_exists_select_star_accommodations_item3998(self):
+        """EXISTS (SELECT * FROM ...) should be flagged."""
+        sql = (
+            "SELECT SUM(cost) FROM accommodations "
+            "WHERE YEAR(accommodation_date) = 2021 "
+            "AND EXISTS (SELECT * FROM students "
+            "WHERE students.id = accommodations.student_id "
+            "AND students.disability_type = 'Mobility Impairment')"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_select_in_exists is True
+
+    def test_not_exists_select_star_insert_guard_item16605(self):
+        """NOT EXISTS (SELECT * ...) used as INSERT guard — still flagged."""
+        sql = (
+            "INSERT INTO users (user_id, name) "
+            "SELECT 10, 'John Smith' FROM users "
+            "WHERE NOT EXISTS (SELECT * FROM users WHERE users.user_id = 10)"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_select_in_exists is True
+
+    def test_exists_select_star_update_item49658(self):
+        """EXISTS (SELECT * ...) in UPDATE WHERE should be flagged."""
+        sql = (
+            "UPDATE inventory SET quantity = 200 "
+            "WHERE material = 'bamboo' "
+            "AND EXISTS (SELECT * FROM production WHERE country = 'Indonesia')"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_select_in_exists is True
+
+    # ================================================================
+    # Correlated subquery — CORRECTLY DETECTED (file recheck was wrong)
+    # ================================================================
+
+    def test_correlated_scalar_subquery_in_select_item906(self):
+        """Scalar subquery in SELECT referencing outer c.ID is correlated."""
+        sql = (
+            "SELECT c.Name, COUNT(a.CountryID) * 1.0 / "
+            "(SELECT COUNT(*) FROM FlightData WHERE FlightData.CountryID = c.ID) "
+            "AS AccidentRate "
+            "FROM Accidents a JOIN Country c ON a.CountryID = c.ID "
+            "GROUP BY c.Name ORDER BY AccidentRate DESC"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_correlated_subquery is True
+
+    def test_correlated_scalar_subquery_in_select_item1954(self):
+        """Scalar subquery referencing te.team_id from outer is correlated."""
+        sql = (
+            "SELECT te.team_name, "
+            "(COUNT(f.fan_id) * 100.0 / "
+            "(SELECT COUNT(*) FROM fans WHERE team_id = te.team_id)) "
+            "as pct_female_fans "
+            "FROM fans f JOIN teams te ON f.team_id = te.team_id "
+            "GROUP BY te.team_id"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_correlated_subquery is True
+
+    def test_correlated_scalar_in_expression_item2416(self):
+        """Scalar subquery inside arithmetic referencing outer table is correlated."""
+        sql = (
+            "SELECT SUM(quantity * "
+            "(SELECT price FROM military_equipment_prices "
+            "WHERE equipment_type = military_equipment_sales.equipment_type)) "
+            "FROM military_equipment_sales "
+            "JOIN countries ON military_equipment_sales.country = countries.country_code "
+            "WHERE countries.region = 'Middle East'"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_correlated_subquery is True
+
+    # ================================================================
+    # NOT IN with nullable — CORRECTLY DETECTED (confirmed_with_caveat)
+    # ================================================================
+
+    def test_not_in_subquery_item437(self):
+        """NOT IN (SELECT zone ...) without schema can't prove NOT NULL."""
+        sql = (
+            "SELECT MAX(depth) FROM ocean_zones "
+            "WHERE hemisphere = 'Southern Hemisphere' "
+            "AND zone NOT IN (SELECT zone FROM ocean_zones "
+            "WHERE hemisphere = 'Northern Hemisphere' AND zone = 'Arctic Zone')"
+        )
+        result = detect_antipatterns(sql)
+        assert result.has_not_in_nullable is True
+
+    def test_not_in_subquery_delete_item2636(self):
+        """DELETE with NOT IN (SELECT ...) — nullable risk."""
+        sql = "DELETE FROM teams WHERE id NOT IN (SELECT team_id FROM championships)"
+        result = detect_antipatterns(sql)
+        assert result.has_not_in_nullable is True
 
 
 if __name__ == "__main__":

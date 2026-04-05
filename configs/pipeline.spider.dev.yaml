@@ -1,0 +1,141 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Text2SQL Antipattern Analyzer — Pipeline Configuration
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# SQL dialect for parsing (sqlite | postgresql)
+dialect: sqlite
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DATA SOURCE
+# ═══════════════════════════════════════════════════════════════════════════════
+load:
+  name: jsonl    # jsonl | json | csv
+  params:
+    path: data_examples/spider/spider_dev_new.jsonl
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROGRESS TRACKING
+# ═══════════════════════════════════════════════════════════════════════════════
+progress:
+  expected_items: 100000
+  show_progress: true
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# NORMALIZATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Spider format
+normalize:
+  - name: alias_mapper
+    params:
+      mapping:
+        id: id
+        question: question
+        sql: query
+        dbId: db_id
+
+# Gretel format
+# normalize:
+#   - name: alias_mapper
+#     params:
+#       mapping:
+#         id: id
+#         question: sql_prompt
+#         sql: sql
+#         schema: sql_context
+
+# Bird format
+# normalize:
+#   - name: alias_mapper
+#     params:
+#       mapping:
+#         question: question
+#         sql: SQL
+#         schema: schema
+#         dbId: db_id
+#         id: id
+
+  - name: id_assign
+    params:
+      mode: incremental
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ANTIPATTERN ANALYSIS
+# ═══════════════════════════════════════════════════════════════════════════════
+analyze:
+  - name: query_antipattern_analyzer
+    params:
+      enabled: true
+
+      # ═══════════════════════════════════════════════════════════════════════
+      # SEVERITY LEVELS
+      # ═══════════════════════════════════════════════════════════════════════
+      #
+      # CRITICAL: Always produces WRONG RESULTS or causes DATA SAFETY issues
+      # HIGH:     Produces WRONG RESULTS in specific cases (subtle semantic errors)
+      # MEDIUM:   Correct results but PERFORMANCE or CODE QUALITY issues
+      # LOW:      STYLE preferences or CONTEXT-DEPENDENT patterns
+      # ═══════════════════════════════════════════════════════════════════════
+
+      # ═══════════════════════════════════════════════════════════════════════
+      # SEVERITY PENALTIES (for quality score calculation)
+      # ═══════════════════════════════════════════════════════════════════════
+      # Quality Score = 100 - sum(penalty * count_of_antipatterns_at_severity)
+      penalties:
+        critical: 30
+        high: 15
+        medium: 5
+        low: 2
+
+      antipatterns:
+        sqlite:
+          critical:
+            - null_comparison_equals         # = NULL instead of IS NULL
+            - unsafe_update_delete           # UPDATE/DELETE without WHERE
+            - cartesian_product              # Missing JOIN condition
+          high:
+            - not_in_nullable                # NOT IN with nullable subquery
+            - limit_without_order_by         # LIMIT without ORDER BY
+            - offset_without_order_by        # OFFSET without ORDER BY
+            - missing_group_by               # Non-aggregated columns without GROUP BY
+          medium:
+            - function_in_where              # Functions on indexed columns
+            - correlated_subquery            # Row-by-row execution
+            - leading_wildcard_like          # LIKE '%pattern' full table scan
+          low:
+            - select_star                    # SELECT * (common in research datasets)
+            - redundant_distinct             # DISTINCT with GROUP BY
+            - select_in_exists               # SELECT col in EXISTS
+
+        postgresql:
+          critical:
+            - null_comparison_equals
+            - missing_group_by
+            - unsafe_update_delete
+            - cartesian_product
+          high:
+            - not_in_nullable
+            - limit_without_order_by
+            - offset_without_order_by
+          medium:
+            - function_in_where
+            - correlated_subquery
+            - leading_wildcard_like
+          low:
+            - select_star
+            - redundant_distinct
+            - select_in_exists
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# OUTPUT
+# ═══════════════════════════════════════════════════════════════════════════════
+output:
+  dataset_name: SPIDER_DEV
+  # base_dir: "."
+
+  jsonl_enabled: true
+
+  reports:
+    enabled: true
+    output_dir: all_reports
+    query_quality: true

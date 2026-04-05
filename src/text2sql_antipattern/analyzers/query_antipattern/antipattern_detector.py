@@ -235,6 +235,10 @@ def _detect_null_comparison_equals(
 
     for node_type in comparison_nodes:
         for node in ast.find_all(node_type):
+            # In UPDATE statements, `SET col = NULL` is an assignment, not a
+            # boolean comparison predicate. Avoid false positives from SET clauses.
+            if _is_update_assignment_comparison(node):
+                continue
             if _is_null_literal(node.left) or _is_null_literal(node.right):
                 features.has_null_comparison_equals = True
                 antipatterns.append(
@@ -1238,6 +1242,15 @@ def _is_null_literal(node: exp.Expression) -> bool:
     """Check if a node is a NULL literal."""
     return isinstance(node, exp.Null) or (isinstance(node, exp.Literal) and str(node).upper() == "NULL")
 
+def _is_update_assignment_comparison(node: exp.Expression) -> bool:
+    """
+    Return True when comparison-like nodes belong to UPDATE SET assignments.
+
+    sqlglot models `SET col = expr` as EQ under the UPDATE node, which can be
+    mistaken for a predicate comparison.
+    """
+    return isinstance(node.parent, exp.Update)
+
 
 def _get_column_table(node: exp.Expression) -> Optional[str]:
     """Extract table name from a column reference if available."""
@@ -1690,20 +1703,34 @@ def _collect_non_aggregated_columns_for_select(
             if col_select is not select:
                 continue
 
-            # Check if this column is inside a non-window aggregate at this level
+            # Check if this column is inside an aggregate-like context at
+            # this level that makes it NOT a "bare non-aggregated column".
             parent = col.parent
-            inside_nonwindow_aggregate = False
+            skip_column = False
 
             while parent is not None and parent is not select:
-                if isinstance(parent, exp.AggFunc) and not _is_window_aggregate(parent):
-                    inside_nonwindow_aggregate = True
+                # Column inside ANY aggregate (window or not) is not "bare".
+                # E.g. SUM(col) OVER (...) — col is still aggregated.
+                if isinstance(parent, exp.AggFunc):
+                    skip_column = True
+                    break
+                # Columns inside FILTER clauses are part of the aggregate's
+                # filtering context (e.g. COUNT(*) FILTER (WHERE col ...)).
+                if isinstance(parent, exp.Filter):
+                    skip_column = True
+                    break
+                # If an enclosing expression matches a GROUP BY expression,
+                # the column is covered.  Example: DATE_TRUNC('month', col)
+                # used inside a window clause when GROUP BY has the same
+                # DATE_TRUNC expression.
+                if _expression_grouped(parent, normalized_group_exprs):
+                    skip_column = True
                     break
                 if isinstance(parent, exp.Subquery):
-                    # If we hit a subquery, this column logically belongs to a different SELECT
                     break
                 parent = parent.parent
 
-            if inside_nonwindow_aggregate:
+            if skip_column:
                 continue
 
             non_aggregate_columns.append(col)

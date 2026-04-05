@@ -1,20 +1,20 @@
 # Query Quality Report
 
-**Generated:** 2026-03-21 18:03:31
+**Generated:** 2026-04-05 11:33:43
 
 ## Summary
 
-- **Total Queries:** 1,534 · **Analyzed:** 1,534 · **Skipped:** 0
+- **Total Queries:** 1,534 · **Analyzed (Parseable):** 1,534 · **Failed:** 0 · **Skipped:** 0
 - **Avg Quality Score:** 99.2/100 · **Avg Antipatterns:** 0.1
 
-## K) Quality Indicators
+## Quality Indicators
 
-### K1) Antipatterns Detected
+### Antipatterns Detected
 
 | Antipattern | Occurrences | Affected Queries | % of Queries | Severity |
 |-------------|-------------|------------------|--------------|----------|
 | Cartesian product | 1 | 1 | 0.1% | 🔴 Critical |
-| Missing GROUP BY | 21 | 21 | 1.4% | ⚠️ High |
+| Missing GROUP BY | 20 | 20 | 1.3% | ⚠️ High |
 | LIMIT without ORDER BY | 6 | 6 | 0.4% | ⚠️ High |
 | NOT IN with nullable | 2 | 2 | 0.1% | ⚠️ High |
 | Function in WHERE | 144 | 144 | 9.4% | 🔵 Medium |
@@ -23,11 +23,11 @@
 | Redundant DISTINCT | 6 | 6 | 0.4% | 🟢 Low |
 
 **Summary:** Avg quality score: 99.2/100 · Avg antipatterns per query: 0.1
-**Queries without antipatterns:** 1,334 (87.0% of analyzed queries)
+**Queries without antipatterns:** 1,335 (87.0% of analyzed queries)
 
-**By Severity:** Critical: 1 🔴 · High: 29 ⚠️ · Medium: 165 🔵 · Low: 6 🟢
+**By Severity:** Critical: 1 🔴 · High: 28 ⚠️ · Medium: 165 🔵 · Low: 6 🟢
 
-#### K1.1) Antipattern Details by item_id
+#### Antipattern Details by item_id
 
 ##### Cartesian product (🔴 Critical)
 
@@ -37,9 +37,9 @@
 
 ##### Missing GROUP BY (⚠️ High)
 
-- **Occurrences:** 21
-- **Affected queries (item_id): 21
-- **item_id list:** 164, 310, 447, 521, 524, 597, 729, 995, 1005, 1027, 1029, 1033, 1041, 1323, 1324, 1368, 1382, 1397, 1405, 1411, 1497
+- **Occurrences:** 20
+- **Affected queries (item_id): 20
+- **item_id list:** 164, 310, 447, 521, 524, 597, 995, 1005, 1027, 1029, 1033, 1041, 1323, 1324, 1368, 1382, 1397, 1405, 1411, 1497
 
 ##### LIMIT without ORDER BY (⚠️ High)
 
@@ -77,6 +77,6 @@
 - **Affected queries (item_id): 6
 - **item_id list:** 50, 85, 721, 900, 1235, 1240
 
-### K2) Unparseable Queries
+### Failed Query Parsing
 
-✅ **All queries are parseable!**
+*No failed queries.*
