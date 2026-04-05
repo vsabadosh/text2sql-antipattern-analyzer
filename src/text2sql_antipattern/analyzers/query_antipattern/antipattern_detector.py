@@ -390,6 +390,32 @@ def _detect_cartesian_product(
                             tables_in_conditions |= all_tables
                             continue
 
+                # Heuristic for range/theta joins with unqualified bound columns.
+                # Example (valid non-Cartesian):
+                #   ... JOIN AgeGroups ON FanDemographics.Age BETWEEN AgeGroupStart AND AgeGroupEnd
+                # In 2-table joins, unqualified bound columns usually belong to the
+                # joined table and represent a proper inter-table condition.
+                if len(all_tables) == 2 and joined_table_name:
+                    for between in on_clause.find_all(exp.Between):
+                        target = between.this
+                        low = between.args.get("low")
+                        high = between.args.get("high")
+
+                        target_table = _get_column_table(target)
+                        low_is_unqualified_col = (
+                            isinstance(low, exp.Column) and not _get_column_table(low)
+                        )
+                        high_is_unqualified_col = (
+                            isinstance(high, exp.Column) and not _get_column_table(high)
+                        )
+
+                        if (
+                            target_table in all_tables
+                            and (low_is_unqualified_col or high_is_unqualified_col)
+                        ):
+                            tables_in_conditions |= all_tables
+                            break
+
                 # General case for expression-based joins:
                 # if ON references the joined table alias and at least one other
                 # table from this SELECT level, treat them as connected.
@@ -436,11 +462,44 @@ def _detect_cartesian_product(
 
         # ------------------------------------------------------------------
         # 2b) WHERE clause: old-style joins and inter-table predicates
+        #
+        # WHERE predicates can "rescue" comma-style tables (FROM a, b
+        # WHERE a.x = b.y) but must NOT rescue tables from explicit JOINs
+        # whose ON was tautological or missing (e.g. JOIN t ON 1=1,
+        # JOIN t without ON).  Those are genuine cross-join code smells.
         # ------------------------------------------------------------------
+        # Collect tables from *explicit* JOINs that section 2a did not
+        # connect.  Comma-joins (FROM a, b) are represented by sqlglot as
+        # Join nodes with no on/using/kind/side — those are old-style
+        # joins and legitimately rely on WHERE for their condition.
+        explicitly_unconnected_joins: Set[str] = set()
+        for join in joins:
+            if not isinstance(join, exp.Join):
+                continue
+            is_rescuable_by_where = (
+                not join.args.get("on")
+                and not join.args.get("using")
+                and not join.side
+                and (
+                    not join.args.get("kind")
+                    or join.args.get("kind") == "CROSS"
+                )
+            )
+            if is_rescuable_by_where:
+                continue
+            jtn = _extract_join_source_name(join.this)
+            if jtn and jtn in all_tables and jtn not in tables_in_conditions:
+                explicitly_unconnected_joins.add(jtn)
+
         where_clause = select.args.get("where")
         if where_clause is not None:
+            where_rescued: Set[str] = set()
             _collect_inter_table_refs_at_level(
-                where_clause, all_tables, tables_in_conditions
+                where_clause, all_tables, where_rescued
+            )
+            # Only admit tables that were NOT from an unconnected explicit JOIN
+            tables_in_conditions.update(
+                where_rescued - explicitly_unconnected_joins
             )
 
         # ------------------------------------------------------------------

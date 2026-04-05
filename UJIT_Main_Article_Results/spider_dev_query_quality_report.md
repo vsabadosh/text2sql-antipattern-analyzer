@@ -1,15 +1,15 @@
 # Query Quality Report
 
-**Generated:** 2026-03-21 17:52:46
+**Generated:** 2026-04-05 15:24:33
 
 ## Summary
 
-- **Total Queries:** 1,034 · **Analyzed:** 1,034 · **Skipped:** 0
+- **Total Queries:** 1,034 · **Analyzed (Parseable):** 1,034 · **Failed:** 0 · **Skipped:** 0
 - **Avg Quality Score:** 97.7/100 · **Avg Antipatterns:** 0.2
 
-## K) Quality Indicators
+## Quality Indicators
 
-### K1) Antipatterns Detected
+### Antipatterns Detected
 
 | Antipattern | Occurrences | Affected Queries | % of Queries | Severity |
 |-------------|-------------|------------------|--------------|----------|
@@ -24,7 +24,7 @@
 
 **By Severity:** Critical: 2 🔴 · High: 152 ⚠️ · Medium: 12 🔵 · Low: 3 🟢
 
-#### K1.1) Antipattern Details by item_id
+#### Antipattern Details by item_id
 
 ##### Cartesian product (🔴 Critical)
 
@@ -56,6 +56,6 @@
 - **Affected queries (item_id): 3
 - **item_id list:** 292, 293, 756
 
-### K2) Unparseable Queries
+### Failed Query Parsing
 
-✅ **All queries are parseable!**
+*No failed queries.*

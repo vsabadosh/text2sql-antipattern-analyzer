@@ -3744,6 +3744,17 @@ class TestLLMExpertVerificationFixes:
         result = detect_antipatterns(sql)
         assert result.has_cartesian_product is False
 
+    def test_join_with_between_unqualified_bounds_not_cartesian(self):
+        """item_id=35207 real form: BETWEEN bounds are unqualified, still a theta join."""
+        sql = """
+        SELECT TeamID, AgeGroupID
+        FROM FanDemographics
+        INNER JOIN AgeGroups
+          ON FanDemographics.Age BETWEEN AgeGroupStart AND AgeGroupEnd
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is False
+
     def test_join_with_unqualified_columns_resolves_not_cartesian(self):
         """item_id=46657 (gretel): unqualified ON start_station = station."""
         sql = """
@@ -3814,6 +3825,61 @@ class TestReviewEdgeCases:
         """ON col1 = col2 (different names, 2 tables) — assumed inter-table."""
         sql = "SELECT id FROM a JOIN b ON col1 = col2"
         result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is False
+
+
+class TestCartesianWhereRescueScoping:
+    """WHERE predicates should rescue comma-joins but NOT explicit JOINs
+    with tautological or missing ON clauses."""
+
+    def test_join_on_1eq1_with_where_predicate_still_cartesian(self):
+        """JOIN ON 1=1 is a code smell even if WHERE connects the tables."""
+        sql = """
+        SELECT c.price FROM co_ownership c
+        JOIN (SELECT AVG(price) AS avg_price FROM property) AS p ON 1 = 1
+        WHERE c.price > p.avg_price
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_join_without_on_with_where_predicate_still_cartesian(self):
+        """JOIN without ON at all is cartesian even if WHERE references both."""
+        sql = """
+        SELECT T2.n_name
+        FROM customer AS T1
+        INNER JOIN nation AS T2 ON T1.c_nationkey = T2.n_nationkey
+        INNER JOIN (SELECT AVG(c_acctbal) * 0.8 AS avg_acctbal FROM customer) AS T3
+        WHERE T1.c_acctbal > T3.avg_acctbal
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_comma_join_with_where_theta_still_not_cartesian(self):
+        """Comma-join with WHERE inter-table predicate is old-style join, not cartesian."""
+        sql = """
+        SELECT c.crime_type, COUNT(c.id)
+        FROM crimes c, neighborhoods n
+        WHERE ST_DWithin(c.location, n.location, n.radius)
+        GROUP BY c.crime_type
+        """
+        result = detect_antipatterns(sql, dialect="postgres")
+        assert result.has_cartesian_product is False
+
+    def test_comma_join_with_where_equality_still_not_cartesian(self):
+        """Classic old-style equi-join in WHERE — must remain non-cartesian."""
+        sql = "SELECT * FROM users u, orders o WHERE u.id = o.user_id"
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is False
+
+    def test_comma_join_with_where_extract_equality_not_cartesian(self):
+        """Comma-join + EXTRACT comparison in WHERE — valid theta-join."""
+        sql = """
+        SELECT VRHeadsets.Name
+        FROM VRHeadsets, GameReleases
+        WHERE EXTRACT(YEAR FROM VRHeadsets.ReleaseDate)
+            = EXTRACT(YEAR FROM GameReleases.ReleaseDate)
+        """
+        result = detect_antipatterns(sql, dialect="postgres")
         assert result.has_cartesian_product is False
 
 

@@ -1,6 +1,6 @@
 # Query Quality Report
 
-**Generated:** 2026-04-05 11:33:43
+**Generated:** 2026-04-05 15:23:45
 
 ## Summary
 
@@ -20,12 +20,12 @@
 | Function in WHERE | 144 | 144 | 9.4% | 🔵 Medium |
 | Leading wildcard LIKE | 19 | 19 | 1.2% | 🔵 Medium |
 | Correlated subquery | 2 | 2 | 0.1% | 🔵 Medium |
-| Redundant DISTINCT | 6 | 6 | 0.4% | 🟢 Low |
+| Redundant DISTINCT | 3 | 3 | 0.2% | 🟢 Low |
 
 **Summary:** Avg quality score: 99.2/100 · Avg antipatterns per query: 0.1
-**Queries without antipatterns:** 1,335 (87.0% of analyzed queries)
+**Queries without antipatterns:** 1,338 (87.2% of analyzed queries)
 
-**By Severity:** Critical: 1 🔴 · High: 28 ⚠️ · Medium: 165 🔵 · Low: 6 🟢
+**By Severity:** Critical: 1 🔴 · High: 28 ⚠️ · Medium: 165 🔵 · Low: 3 🟢
 
 #### Antipattern Details by item_id
 
@@ -73,9 +73,9 @@
 
 ##### Redundant DISTINCT (🟢 Low)
 
-- **Occurrences:** 6
-- **Affected queries (item_id): 6
-- **item_id list:** 50, 85, 721, 900, 1235, 1240
+- **Occurrences:** 3
+- **Affected queries (item_id): 3
+- **item_id list:** 721, 900, 1235
 
 ### Failed Query Parsing
 
