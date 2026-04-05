@@ -178,6 +178,13 @@ def _detect_unsafe_update_delete(ast: exp.Expression, antipatterns: List[Antipat
     for delete in ast.find_all(exp.Delete):
         where_nodes = list(delete.find_all(exp.Where))
         if not where_nodes:
+            # A DELETE with JOIN ... ON also restricts affected rows
+            # (e.g. DELETE u FROM users u JOIN ... ON ...), but only when
+            # the ON predicate references real columns (not tautologies
+            # like ON 1=1 or ON TRUE).
+            if _has_meaningful_join_filter(delete):
+                continue
+
             features.has_unsafe_update_delete = True
             antipatterns.append(AntipatternInstance(
                 pattern=AntipatternPattern.UNSAFE_DELETE.value,
@@ -345,8 +352,8 @@ def _detect_cartesian_product(
                         continue
 
                     # Heuristic: exactly two tables, equality between two columns.
-                    # We use it to handle cases where one side is unqualified
-                    # but the database would resolve it to the other table.
+                    # We use it to handle cases where one or both sides are
+                    # unqualified but the database would resolve them.
                     if (
                         len(all_tables) == 2
                         and isinstance(left, exp.Column)
@@ -365,6 +372,21 @@ def _detect_cartesian_product(
                         # If at least one side resolves to a table at this level,
                         # assume this condition connects both tables.
                         if (left_table in all_tables) or (right_table in all_tables):
+                            tables_in_conditions |= all_tables
+                            continue
+
+                        # Both columns unqualified with different names in a
+                        # 2-table JOIN: the DB must resolve each to one of
+                        # the two tables (otherwise the query would error on
+                        # ambiguous columns). We accept this only when the
+                        # joined table is known, giving high confidence that
+                        # the ON clause is meant to connect them.
+                        if (
+                            not left_table
+                            and not right_table
+                            and joined_table_name
+                            and (left.name or "").lower() != (right.name or "").lower()
+                        ):
                             tables_in_conditions |= all_tables
                             continue
 
@@ -413,43 +435,13 @@ def _detect_cartesian_product(
                         tables_in_conditions.add(from_clause.this.alias.lower())
 
         # ------------------------------------------------------------------
-        # 2b) WHERE clause: old-style joins (a.col = b.col)
+        # 2b) WHERE clause: old-style joins and inter-table predicates
         # ------------------------------------------------------------------
         where_clause = select.args.get("where")
         if where_clause is not None:
-
-            def _check_eq_at_level(node: exp.Expression) -> None:
-                """
-                Check EQ expressions only at the current WHERE level,
-                skipping nested subqueries.
-                """
-                if isinstance(node, (exp.Select, exp.Subquery)):
-                    # Do not descend into subqueries
-                    return
-
-                if isinstance(node, exp.EQ):
-                    left = node.left
-                    right = node.right
-
-                    left_table = _get_column_table(left)
-                    right_table = _get_column_table(right)
-
-                    # Only count conditions that connect two different tables
-                    if (
-                        left_table
-                        and right_table
-                        and left_table != right_table
-                        and left_table in all_tables
-                        and right_table in all_tables
-                    ):
-                        tables_in_conditions.add(left_table)
-                        tables_in_conditions.add(right_table)
-
-                # Recurse into children (but we already skip subqueries above)
-                for child in node.iter_expressions():
-                    _check_eq_at_level(child)
-
-            _check_eq_at_level(where_clause)
+            _collect_inter_table_refs_at_level(
+                where_clause, all_tables, tables_in_conditions
+            )
 
         # ------------------------------------------------------------------
         # 3) Decide if this SELECT has a Cartesian product
@@ -1238,9 +1230,49 @@ def _extract_join_source_name(source: exp.Expression) -> Optional[str]:
     return None
 
 
+_SQLITE_AGGREGATE_NAMES = frozenset({"total", "group_concat"})
+
+
+def _is_aggregate_like(node: exp.Expression) -> bool:
+    """Return True if the node is a standard aggregate OR a dialect-specific
+    aggregate function that sqlglot does not classify as exp.AggFunc
+    (e.g. SQLite's TOTAL())."""
+    if isinstance(node, exp.AggFunc):
+        return True
+    if isinstance(node, exp.Anonymous):
+        return getattr(node, "name", "").lower() in _SQLITE_AGGREGATE_NAMES
+    return False
+
+
 def _is_null_literal(node: exp.Expression) -> bool:
     """Check if a node is a NULL literal."""
     return isinstance(node, exp.Null) or (isinstance(node, exp.Literal) and str(node).upper() == "NULL")
+
+def _has_meaningful_join_filter(stmt: exp.Expression) -> bool:
+    """Return True if *stmt* (DELETE/UPDATE) contains at least one JOIN whose
+    ON or USING clause provides inter-table filtering evidence.
+
+    Conservative rule for ON:
+    - ON is considered meaningful only when it references columns from at least
+      two different table aliases at this statement level.
+    - This prevents tautologies such as ON 1=1, ON TRUE, or ON u.id = u.id
+      from being treated as safe filters.
+    """
+    for join in stmt.find_all(exp.Join):
+        using = join.args.get("using")
+        if using is not None:
+            return True
+        on_clause = join.args.get("on")
+        if on_clause is not None:
+            on_tables = {
+                str(col.table).lower()
+                for col in on_clause.find_all(exp.Column)
+                if getattr(col, "table", None)
+            }
+            if len(on_tables) >= 2:
+                return True
+    return False
+
 
 def _is_update_assignment_comparison(node: exp.Expression) -> bool:
     """
@@ -1260,6 +1292,61 @@ def _get_column_table(node: exp.Expression) -> Optional[str]:
     return None
 
 
+def _collect_inter_table_refs_at_level(
+    node: exp.Expression,
+    all_tables: Set[str],
+    tables_in_conditions: Set[str],
+) -> None:
+    """
+    Walk a WHERE (or similar) clause at the current level (skipping subqueries)
+    and add to *tables_in_conditions* every table that participates in an
+    inter-table predicate.
+
+    Recognized predicate forms:
+      - Binary comparisons: a.col = b.col, a.col < b.col, etc.
+      - Function calls whose arguments reference columns from >=2 tables
+        (e.g. ST_DWithin(a.loc, b.loc, radius), ST_Intersects(a.geom, b.geom)).
+      - Comparison of function results: EXTRACT(YEAR FROM a.d) = EXTRACT(YEAR FROM b.d).
+    """
+    if isinstance(node, (exp.Select, exp.Subquery)):
+        return
+
+    _COMPARISON_TYPES = (exp.EQ, exp.NEQ, exp.LT, exp.GT, exp.LTE, exp.GTE)
+
+    # Binary comparison: collect tables from both sides combined
+    if isinstance(node, _COMPARISON_TYPES):
+        left_tables = _tables_in_expression(node.left, all_tables)
+        right_tables = _tables_in_expression(node.right, all_tables)
+        combined = left_tables | right_tables
+        if len(combined) >= 2:
+            tables_in_conditions.update(combined)
+
+    # Function calls (e.g. spatial predicates used as boolean filters)
+    if isinstance(node, exp.Func) and not isinstance(node, _COMPARISON_TYPES + (exp.And, exp.Or, exp.Not)):
+        func_tables = _tables_in_expression(node, all_tables)
+        if len(func_tables) >= 2:
+            tables_in_conditions.update(func_tables)
+
+    for child in node.iter_expressions():
+        _collect_inter_table_refs_at_level(child, all_tables, tables_in_conditions)
+
+
+def _tables_in_expression(expr: exp.Expression, all_tables: Set[str]) -> Set[str]:
+    """Return the set of table aliases from *all_tables* referenced by columns
+    inside *expr*, without descending into subqueries."""
+    result: Set[str] = set()
+    if isinstance(expr, (exp.Select, exp.Subquery)):
+        return result
+    if isinstance(expr, exp.Column):
+        t = _get_column_table(expr)
+        if t and t in all_tables:
+            result.add(t)
+        return result
+    for child in expr.iter_expressions():
+        result.update(_tables_in_expression(child, all_tables))
+    return result
+
+
 def _closest_parent_of_type(node: exp.Expression, cls: Type[exp.Expression]) -> Optional[exp.Expression]:
     """Return the closest ancestor of the given type (or None if not found)."""
     parent = node.parent
@@ -1267,7 +1354,7 @@ def _closest_parent_of_type(node: exp.Expression, cls: Type[exp.Expression]) -> 
         parent = parent.parent
     return parent
 
-def _is_window_aggregate(agg: exp.AggFunc) -> bool:
+def _is_window_aggregate(agg: exp.Expression) -> bool:
     """
     Return True if this aggregate function is used as a window function,
     i.e. it is inside a Window node (AVG(...) OVER (...)).
@@ -1287,7 +1374,7 @@ def _has_aggregate_not_in_subquery(expr: exp.Expression) -> bool:
     This prevents false positives when checking for aggregates in SELECT clauses
     that have subqueries with aggregates in WHERE or other clauses.
     """
-    if isinstance(expr, exp.AggFunc):
+    if _is_aggregate_like(expr):
         return True
     
     # Don't recurse into subqueries
@@ -1352,8 +1439,10 @@ def _detect_redundant_distinct(ast: exp.Expression, antipatterns: List[Antipatte
         if not isinstance(top_level_distinct, exp.Distinct):
             continue
 
-        # There is a top‑level DISTINCT; now check whether it also has GROUP BY.
-        has_group_by = any(select.find_all(exp.Group))
+        # There is a top‑level DISTINCT; now check whether *this* SELECT has GROUP BY.
+        # We must NOT recurse into subqueries — a GROUP BY in a nested subquery
+        # does not make the outer DISTINCT redundant.
+        has_group_by = select.args.get("group") is not None
 
         if has_group_by:
             features.has_redundant_distinct = True
@@ -1635,9 +1724,9 @@ def _collect_non_aggregated_columns_for_select(
 
         # Detect non-window aggregates at this level (ignoring aggregates only in subqueries)
         if _has_aggregate_not_in_subquery(expr):
-            # But we still need to ensure they are not window aggregates
-            for agg in expr.find_all(exp.AggFunc):
-                if not _is_window_aggregate(agg):
+            # Check standard aggregates and dialect-specific ones (e.g. TOTAL)
+            for node in expr.walk():
+                if _is_aggregate_like(node) and not _is_window_aggregate(node):
                     has_non_window_aggregate = True
                     break
 
@@ -1689,7 +1778,7 @@ def _collect_non_aggregated_columns_for_select(
             resolved_expr = expr
 
         # If the entire expression is an aggregate at this level, skip it
-        if isinstance(resolved_expr, exp.AggFunc) and not _is_window_aggregate(resolved_expr):
+        if _is_aggregate_like(resolved_expr) and not _is_window_aggregate(resolved_expr):
             continue
 
         # If the entire expression is grouped by GROUP BY, skip it
@@ -1711,7 +1800,8 @@ def _collect_non_aggregated_columns_for_select(
             while parent is not None and parent is not select:
                 # Column inside ANY aggregate (window or not) is not "bare".
                 # E.g. SUM(col) OVER (...) — col is still aggregated.
-                if isinstance(parent, exp.AggFunc):
+                # Also covers dialect-specific aggregates like SQLite's TOTAL().
+                if _is_aggregate_like(parent):
                     skip_column = True
                     break
                 # Columns inside FILTER clauses are part of the aggregate's

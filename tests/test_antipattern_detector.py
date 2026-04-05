@@ -3595,6 +3595,228 @@ class TestGretelManualRecheckRegressions:
         assert result.has_not_in_nullable is True
 
 
+class TestLLMExpertVerificationFixes:
+    """
+    Regression tests for 14 false-positive cases identified during the
+    LLM expert verification of 769 discrepancy queries.
+    Each test corresponds to a real query from the sampling dataset.
+    """
+
+    # ------------------------------------------------------------------
+    # redundant_distinct: GROUP BY only in subquery, not at outer SELECT level
+    # ------------------------------------------------------------------
+
+    def test_distinct_with_group_by_only_in_where_subquery_not_flagged(self):
+        """item_id=50 (bird dev): DISTINCT in outer, GROUP BY only in scalar subquery."""
+        sql = """
+        SELECT DISTINCT County, School, ClosedDate FROM schools
+        WHERE County = (
+            SELECT County FROM schools WHERE StatusType = 'Closed'
+            GROUP BY County ORDER BY COUNT(School) DESC LIMIT 1
+        ) AND StatusType = 'Closed' AND school IS NOT NULL
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_redundant_distinct is False
+
+    def test_distinct_with_group_by_only_in_in_subquery_not_flagged(self):
+        """item_id=63578 (gretel): DISTINCT in outer, GROUP BY only in IN-subquery."""
+        sql = """
+        SELECT DISTINCT FFName, Country FROM FreightForwarder
+        WHERE Country IN (
+            SELECT Country FROM FulfillmentCenter
+            GROUP BY Country HAVING COUNT(DISTINCT FCID) > 3
+        )
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_redundant_distinct is False
+
+    def test_distinct_with_group_by_only_in_scalar_subquery_not_flagged(self):
+        """item_id=3167 (bird train): DISTINCT outer, GROUP BY in WHERE = (subquery)."""
+        sql = """
+        SELECT DISTINCT donor_state FROM donations
+        WHERE donor_state = (
+            SELECT donor_state FROM donations
+            GROUP BY donor_state ORDER BY SUM(donation_total) DESC LIMIT 1
+        )
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_redundant_distinct is False
+
+    def test_distinct_with_group_by_in_in_subquery_spacecraft_not_flagged(self):
+        """item_id=28775 (gretel): DISTINCT outer, GROUP BY in IN-subquery."""
+        sql = """
+        SELECT DISTINCT Spacecraft_Name FROM Spacecraft_Manufacturers_5
+        WHERE Company IN (
+            SELECT Company FROM Spacecraft_Manufacturers_5
+            GROUP BY Company HAVING COUNT(*) > 5
+        )
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_redundant_distinct is False
+
+    # ------------------------------------------------------------------
+    # missing_group_by: TOTAL() is a SQLite aggregate function
+    # ------------------------------------------------------------------
+
+    def test_total_sqlite_aggregate_not_flagged_as_missing_group_by(self):
+        """item_id=1927 (bird train): TOTAL() is a SQLite aggregate; no non-aggregated cols."""
+        sql = """
+        SELECT CAST(COUNT(CASE WHEN T2.Win_Margin < 10 THEN 1 ELSE 0 END) AS REAL)
+               * 100 / TOTAL(T1.Venue_Id)
+        FROM Venue AS T1
+        INNER JOIN Match AS T2 ON T1.Venue_Id = T2.Venue_Id
+        WHERE T1.Venue_Name = 'Dr DY Patil Sports Academy'
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_missing_group_by is False
+
+    # ------------------------------------------------------------------
+    # unsafe_delete: DELETE with JOIN acts as filter (not unsafe)
+    # ------------------------------------------------------------------
+
+    def test_delete_with_join_filter_not_flagged(self):
+        """item_id=14203 (gretel): DELETE with JOIN ON — targets specific rows, not all."""
+        sql = """
+        DELETE u FROM users u
+        JOIN (SELECT continent, username FROM users
+              GROUP BY continent, username HAVING SUM(followers) < 100) t
+        ON u.continent = t.continent AND u.username = t.username
+        """
+        result = detect_antipatterns(sql, dialect="mysql")
+        assert result.has_unsafe_update_delete is False
+
+    # ------------------------------------------------------------------
+    # cartesian_product: spatial / theta / function-based WHERE predicates
+    # ------------------------------------------------------------------
+
+    def test_comma_join_with_spatial_st_dwithin_not_cartesian(self):
+        """item_id=23735 (gretel): ST_DWithin in WHERE connects both tables."""
+        sql = """
+        SELECT c.crime_type, COUNT(c.id) as total_crimes
+        FROM crimes c, neighborhoods n
+        WHERE ST_DWithin(c.location, n.location, n.radius)
+        GROUP BY c.crime_type
+        """
+        result = detect_antipatterns(sql, dialect="postgres")
+        assert result.has_cartesian_product is False
+
+    def test_comma_join_with_spatial_st_intersects_not_cartesian(self):
+        """item_id=58673 (gretel): ST_Intersects in WHERE connects both tables."""
+        sql = """
+        SELECT w.name as habitat_name, ST_Area(w.geometry) as area
+        FROM wildlife_habitat w, protected_areas a
+        WHERE ST_Intersects(w.geometry, a.geometry)
+        """
+        result = detect_antipatterns(sql, dialect="postgres")
+        assert result.has_cartesian_product is False
+
+    def test_comma_join_with_st_dwithin_and_filter_not_cartesian(self):
+        """item_id=39657 (gretel): ST_DWithin + inequality in WHERE."""
+        sql = """
+        SELECT AVG(ST_Distance(Residents.Location, Hospitals.Location))
+        FROM Residents, Hospitals
+        WHERE ST_DWithin(Residents.Location, Hospitals.Location, 50000)
+          AND Residents.Location <> Hospitals.Location
+        """
+        result = detect_antipatterns(sql, dialect="postgres")
+        assert result.has_cartesian_product is False
+
+    def test_comma_join_with_extract_year_equality_not_cartesian(self):
+        """item_id=72624 (gretel): EXTRACT(YEAR ...) = EXTRACT(YEAR ...) in WHERE."""
+        sql = """
+        SELECT VRHeadsets.Name
+        FROM VRHeadsets, GameReleases
+        WHERE EXTRACT(YEAR FROM VRHeadsets.ReleaseDate)
+            = EXTRACT(YEAR FROM GameReleases.ReleaseDate)
+          AND GameReleases.Platform = 'Console'
+        """
+        result = detect_antipatterns(sql, dialect="postgres")
+        assert result.has_cartesian_product is False
+
+    def test_join_with_between_theta_condition_not_cartesian(self):
+        """item_id=35207 (gretel): BETWEEN in ON is a valid theta join."""
+        sql = """
+        SELECT TeamID, AgeGroupID
+        FROM FanDemographics
+        INNER JOIN AgeGroups
+          ON FanDemographics.Age BETWEEN AgeGroups.AgeGroupStart AND AgeGroups.AgeGroupEnd
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is False
+
+    def test_join_with_unqualified_columns_resolves_not_cartesian(self):
+        """item_id=46657 (gretel): unqualified ON start_station = station."""
+        sql = """
+        SELECT start_station
+        FROM route_segments
+        JOIN passenger_counts ON start_station = station
+        WHERE passenger_count > 1500 AND fare > 2
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is False
+
+
+class TestReviewEdgeCases:
+    """Edge-case tests added after code review of the LLM verification fixes."""
+
+    # -- unsafe_delete: tautological JOIN should still be flagged ---------
+
+    def test_delete_join_on_1_eq_1_still_unsafe(self):
+        """DELETE with JOIN ON 1=1 is effectively unfiltered — must be flagged."""
+        sql = "DELETE u FROM users u JOIN roles r ON 1 = 1"
+        result = detect_antipatterns(sql, dialect="mysql")
+        assert result.has_unsafe_update_delete is True
+
+    def test_delete_join_on_true_still_unsafe(self):
+        """DELETE with JOIN ON TRUE is tautological — must be flagged."""
+        sql = "DELETE u FROM users u JOIN roles r ON TRUE"
+        result = detect_antipatterns(sql, dialect="mysql")
+        assert result.has_unsafe_update_delete is True
+
+    def test_delete_join_on_same_table_columns_still_unsafe(self):
+        """DELETE with ON u.id = u.id is tautological — must be flagged."""
+        sql = "DELETE u FROM users u JOIN roles r ON u.id = u.id"
+        result = detect_antipatterns(sql, dialect="mysql")
+        assert result.has_unsafe_update_delete is True
+
+    def test_delete_join_with_real_on_condition_safe(self):
+        """DELETE with JOIN whose ON references real columns is safe."""
+        sql = """
+        DELETE u FROM users u
+        JOIN banned b ON u.email = b.email
+        """
+        result = detect_antipatterns(sql, dialect="mysql")
+        assert result.has_unsafe_update_delete is False
+
+    # -- cartesian_product: cross-table comparison with both sides mixed --
+
+    def test_where_mixed_table_comparison_not_cartesian(self):
+        """WHERE a.x + b.y = a.z + b.w references both tables → not Cartesian."""
+        sql = "SELECT id FROM a, b WHERE a.x + b.y = a.z + b.w"
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is False
+
+    def test_where_single_table_comparison_still_cartesian(self):
+        """WHERE a.x = a.y references only table 'a'; 'b' is floating → Cartesian."""
+        sql = "SELECT id FROM a, b WHERE a.x = a.y"
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    # -- cartesian_product: unqualified ON heuristic ----------------------
+
+    def test_unqualified_on_same_name_tautology_still_cartesian(self):
+        """ON x = x (same name, unqualified) is a tautology → Cartesian."""
+        sql = "SELECT id FROM a JOIN b ON x = x"
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_unqualified_on_different_names_not_cartesian(self):
+        """ON col1 = col2 (different names, 2 tables) — assumed inter-table."""
+        sql = "SELECT id FROM a JOIN b ON col1 = col2"
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is False
+
+
 if __name__ == "__main__":
     # Run tests with pytest
     pytest.main([__file__, "-v"])
