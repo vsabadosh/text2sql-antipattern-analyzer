@@ -36,6 +36,7 @@
 - **Occurrences:** 17
 - **Affected queries (item_id): 17
 - **item_id list:** 1517, 2975, 3751, 3868, 3869, 4231, 6240, 6630, 6693, 6760, 7079, 7090, 7292, 7421, 8304, 8594, 9053
+- **Note (item_id 7292):** `INNER JOIN` is written without an explicit `ON` condition, and the table-link predicate appears in `WHERE`; after the current cartesian detection fix, this query is intentionally counted as a cartesian-style join pattern.
 
 ##### = NULL comparison (🔴 Critical)
 

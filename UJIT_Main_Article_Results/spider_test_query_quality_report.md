@@ -32,6 +32,7 @@
 - **Occurrences:** 6
 - **Affected queries (item_id): 6
 - **item_id list:** 388, 389, 508, 509, 510, 511
+- **Note (item_id 508/509/510/511):** These cases use explicit `JOIN` without an `ON` condition (parsed as `ON TRUE`), while table-link predicates are placed in `WHERE`; under the current cartesian detection fix, this pattern is intentionally counted as cartesian-style join usage.
 
 ##### Missing GROUP BY (⚠️ High)
 
