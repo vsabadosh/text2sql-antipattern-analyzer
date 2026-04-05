@@ -5,6 +5,7 @@ import duckdb
 from typing import Dict
 from pathlib import Path
 from datetime import datetime
+import sqlglot
 
 try:
     from text2sql_antipattern.analyzers.query_antipattern.antipattern_registry import (
@@ -29,6 +30,15 @@ except ImportError:
 
 class MarkdownReportGenerator:
     """Generate markdown reports from DuckDB metrics."""
+    DIALECT_CHECKS: tuple[str, ...] = (
+        "sqlite",
+        "postgres",
+        "duckdb",
+        "mysql",
+        "bigquery",
+        "snowflake",
+        "tsql",
+    )
 
     def __init__(self, duckdb_path: str):
         self.duckdb_path = duckdb_path
@@ -47,6 +57,30 @@ class MarkdownReportGenerator:
             analyzer_name = table_name.replace("metrics_", "")
             tables[analyzer_name] = table_name
         return tables
+
+    def _table_has_column(self, table_name: str, column_name: str) -> bool:
+        result = self.conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = 'main'
+              AND table_name = ?
+              AND column_name = ?
+            """,
+            [table_name, column_name],
+        ).fetchone()
+        return bool(result and result[0] > 0)
+
+    def _classify_dialect_parseability(self, sql: str) -> tuple[list[str], list[str]]:
+        parseable: list[str] = []
+        not_parseable: list[str] = []
+        for dialect in self.DIALECT_CHECKS:
+            try:
+                sqlglot.parse_one(sql, read=dialect)
+                parseable.append(dialect)
+            except Exception:
+                not_parseable.append(dialect)
+        return parseable, not_parseable
 
     def generate_query_quality_report(self, output_path: str) -> None:
         """Generate Query Quality Report."""
@@ -73,7 +107,17 @@ class MarkdownReportGenerator:
         skipped_result = self.conn.execute(f"SELECT COUNT(*) FROM {antipattern_table} WHERE status = 'skipped'").fetchone()
         skipped_queries = skipped_result[0] or 0
 
-        analyzed_queries = (total_queries or 0) - (skipped_queries or 0)
+        failed_result = self.conn.execute(
+            f"SELECT COUNT(*) FROM {antipattern_table} WHERE status = 'failed'"
+        ).fetchone()
+        failed_queries = failed_result[0] or 0
+
+        parseable_result = self.conn.execute(f"""
+            SELECT COUNT(*)
+            FROM {antipattern_table}
+            WHERE parseable = true AND status != 'skipped'
+        """).fetchone()
+        analyzed_queries = parseable_result[0] or 0
 
         stats_result = self.conn.execute(f"""
             SELECT AVG(quality_score), AVG(total_antipatterns)
@@ -87,8 +131,9 @@ class MarkdownReportGenerator:
         sections.append("## Summary")
         sections.append("")
         if total_queries > 0:
-            skipped_count = total_queries - analyzed_queries
-            sections.append(f"- **Total Queries:** {total_queries:,} · **Analyzed:** {analyzed_queries:,} · **Skipped:** {skipped_count:,}")
+            sections.append(
+                f"- **Total Queries:** {total_queries:,} · **Analyzed (Parseable):** {analyzed_queries:,} · **Failed:** {failed_queries:,} · **Skipped:** {skipped_queries:,}"
+            )
             if analyzed_queries > 0:
                 sections.append(f"- **Avg Quality Score:** {quality_score_sum:.1f}/100 · **Avg Antipatterns:** {antipatterns_sum:.1f}")
         else:
@@ -99,6 +144,7 @@ class MarkdownReportGenerator:
         sections.append("")
 
         sections.append(self._generate_antipatterns_quality(antipattern_table))
+        sections.append(self._generate_failed_queries_section(antipattern_table))
 
         Path(output_path).write_text("\n".join(sections), encoding="utf-8")
 
@@ -286,6 +332,65 @@ class MarkdownReportGenerator:
 
         except Exception as e:
             lines.append(f"*Error generating antipatterns: {e}*")
+            lines.append("")
+
+        return "\n".join(lines)
+
+    def _generate_failed_queries_section(self, table: str) -> str:
+        lines = ["### Failed Query Parsing", ""]
+
+        failed_count = self.conn.execute(
+            f"SELECT COUNT(*) FROM {table} WHERE status = 'failed'"
+        ).fetchone()[0]
+
+        if not failed_count:
+            lines.append("*No failed queries.*")
+            lines.append("")
+            return "\n".join(lines)
+
+        lines.append(f"**Failed queries:** {failed_count:,}")
+        lines.append("")
+
+        has_failed_query = self._table_has_column(table, "failed_query")
+
+        if has_failed_query:
+            failed_rows = self.conn.execute(f"""
+                SELECT item_id, err, failed_query
+                FROM {table}
+                WHERE status = 'failed'
+                ORDER BY CAST(item_id AS INTEGER) NULLS LAST, item_id
+            """).fetchall()
+        else:
+            failed_rows = self.conn.execute(f"""
+                SELECT item_id, err, NULL as failed_query
+                FROM {table}
+                WHERE status = 'failed'
+                ORDER BY CAST(item_id AS INTEGER) NULLS LAST, item_id
+            """).fetchall()
+            lines.append("*SQL text for failed rows is unavailable in this metrics database version.*")
+            lines.append("")
+
+        lines.append("#### Failed items")
+        lines.append("")
+        for item_id, err, failed_query in failed_rows:
+            lines.append(f"- **item_id:** {item_id}")
+            lines.append(f"- **error:** {err or 'unknown error'}")
+            if failed_query:
+                parseable_dialects, not_parseable_dialects = self._classify_dialect_parseability(
+                    str(failed_query)
+                )
+                lines.append(
+                    f"- **parseable dialects:** {', '.join(parseable_dialects) if parseable_dialects else 'none'}"
+                )
+                lines.append(
+                    f"- **not parseable dialects:** {', '.join(not_parseable_dialects) if not_parseable_dialects else 'none'}"
+                )
+                lines.append("- **query:**")
+                lines.append("```sql")
+                lines.append(str(failed_query).strip())
+                lines.append("```")
+            else:
+                lines.append("- **query:** _not available_")
             lines.append("")
 
         return "\n".join(lines)

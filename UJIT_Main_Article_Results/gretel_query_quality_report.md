@@ -1,15 +1,15 @@
 # Query Quality Report
 
-**Generated:** 2026-03-29 18:54:12
+**Generated:** 2026-04-04 09:16:52
 
 ## Summary
 
-- **Total Queries:** 100,000 · **Analyzed:** 99,927 · **Skipped:** 73
+- **Total Queries:** 100,000 · **Analyzed (Parseable):** 99,927 · **Failed:** 73 · **Skipped:** 0
 - **Avg Quality Score:** 98.9/100 · **Avg Antipatterns:** 0.1
 
-## K) Quality Indicators
+## Quality Indicators
 
-### K1) Antipatterns Detected
+### Antipatterns Detected
 
 | Antipattern | Occurrences | Affected Queries | % of Queries | Severity |
 |-------------|-------------|------------------|--------------|----------|
@@ -33,7 +33,7 @@
 
 **By Severity:** Critical: 446 🔴 · High: 3,385 ⚠️ · Medium: 8,212 🔵 · Low: 2,409 🟢
 
-#### K1.1) Antipattern Details by item_id
+#### Antipattern Details by item_id
 
 ##### Cartesian product (🔴 Critical)
 
@@ -119,107 +119,738 @@
 - **Affected queries (item_id): 30
 - **item_id list:** 3806, 3998, 10031, 10473, 15454, 16187, 16605, 17048, 17675, 20162, 20953, 23231, 23255, 31471, 32284, 36001, 39101, 47347, 48870, 49658, 66883, 68891, 70613, 70894, 75193, 87756, 88227, 92336, 92710, 97504
 
-### K2) Unparseable Queries
+### Failed Query Parsing
 
-**Found 73 unparseable queries (0.1% of total)**
+**Failed queries:** 73
 
-| Item ID | Error |
-|-------------|-------|
-| 581 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 882 | Unparsable error: Required keyword: 'this' missing for <class 'sqlglot.expressions.Where'>. Line 1, ... |
-| 2669 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: Grant, line:... |
-| 6862 | Unparsable error: Expecting ). Line 1, Col: 39.
-  SELECT department.name, AVG(COUNT([4mgrant[0m.id... |
-| 8684 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 10373 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 12239 | Unparsable error: Required keyword: 'expressions' missing for <class 'sqlglot.expressions.Values'>. ... |
-| 13520 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 15024 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 15159 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 15316 | Unparsable error: Required keyword: 'this' missing for <class 'sqlglot.expressions.Where'>. Line 1, ... |
-| 15398 | Unparsable error: Invalid expression / Unexpected token. Line 1, Col: 29.
-  SELECT department.name, ... |
-| 15842 | Unparsable error: Found multiple 'WHERE' clauses. Line 1, Col: 291.
-  es AS DestinationWarehouses ON... |
-| 18312 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 18675 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 19529 | Unparsable error: Expecting ). Line 1, Col: 70.
-  SELECT name, ((price - price_history[ARRAY_LENGTH(... |
-| 19720 | Unparsable error: Found multiple 'WHERE' clauses. Line 1, Col: 211.
-  ability_rating > 4.5 INNER JOI... |
-| 20139 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 20829 | Unparsable error: Found multiple 'WHERE' clauses. Line 1, Col: 291.
-  es AS DestinationWarehouses ON... |
-| 21248 | Unparsable error: Expecting ). Line 1, Col: 32.
-  SELECT ((production[year=2018] [4m-[0m productio... |
-| 22286 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 23904 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 24092 | Unparsable error: Required keyword: 'this' missing for <class 'sqlglot.expressions.Sum'>. Line 1, Co... |
-| 26159 | Unparsable error: Found multiple 'GROUP BY' clauses. Line 1, Col: 94.
-  SELECT AVG(COUNT(*)), Agency... |
-| 27927 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 30404 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 33292 | Unparsable error: Found multiple 'WHERE' clauses. Line 1, Col: 131.
-  cts WHERE is_fair_trade = true... |
-| 33435 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 36432 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: Grant, line:... |
-| 37337 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 38147 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 38591 | Unparsable error: Found multiple 'GROUP BY' clauses. Line 1, Col: 337.
-  , market_capitalization FRO... |
-| 44934 | Unparsable error: Invalid expression / Unexpected token. Line 1, Col: 20.
-  SELECT country[1] [4mAS... |
-| 45527 | Unparsable error: Required keyword: 'expressions' missing for <class 'sqlglot.expressions.Values'>. ... |
-| 45859 | Unparsable error: Found multiple 'GROUP BY' clauses. Line 1, Col: 521.
-  te_name FROM Experts WHERE ... |
-| 47040 | Unparsable error: Invalid expression / Unexpected token. Line 1, Col: 29.
-  SELECT production[year=2... |
-| 47314 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 48645 | Unparsable error: Invalid expression / Unexpected token. Line 1, Col: 120.
-  SELECT county_id, COUNT... |
-| 51089 | Unparsable error: Required keyword: 'this' missing for <class 'sqlglot.expressions.Where'>. Line 1, ... |
-| 51125 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 55468 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 56378 | Unparsable error: Expecting ). Line 1, Col: 32.
-  SELECT ((production[year=2019] [4m-[0m productio... |
-| 58936 | Unparsable error: Required keyword: 'this' missing for <class 'sqlglot.expressions.Sum'>. Line 1, Co... |
-| 60472 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 61503 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 61554 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 62490 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 63282 | Unparsable error: Invalid expression / Unexpected token. Line 1, Col: 29.
-  SELECT production[year=2... |
-| 65053 | Unparsable error: Required keyword: 'this' missing for <class 'sqlglot.expressions.Where'>. Line 1, ... |
-| 66175 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 67496 | Unparsable error: Expecting ). Line 1, Col: 169.
-  dget FROM defense_projects_3 WHERE project_name =... |
-| 70721 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 72689 | Unparsable error: Invalid expression / Unexpected token. Line 1, Col: 25.
-  SELECT species_name[1] ... |
-| 73102 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 75868 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 77402 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 79761 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: Grant, line:... |
-| 79922 | Unparsable error: Required keyword: 'this' missing for <class 'sqlglot.expressions.Sum'>. Line 1, Co... |
-| 80985 | Unparsable error: Required keyword: 'this' missing for <class 'sqlglot.expressions.Avg'>. Line 1, Co... |
-| 81472 | Unparsable error: Expecting ). Line 1, Col: 281.
-  d, client_id, 0.00 payment_amount, CURRENT_DATE p... |
-| 83172 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 85187 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 86574 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 86835 | Unparsable error: Found multiple 'GROUP BY' clauses. Line 1, Col: 276.
-  , Country, COUNT(*) as num_... |
-| 87244 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 89652 | Unparsable error: Found multiple 'WHERE' clauses. Line 1, Col: 131.
-  cts WHERE is_fair_trade = true... |
-| 90236 | Unparsable error: Found multiple 'WHERE' clauses. Line 1, Col: 315.
-  es AS DestinationWarehouses ON... |
-| 90818 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 94331 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 94837 | Unparsable error: Invalid expression / Unexpected token. Line 1, Col: 166.
-  SELECT project_name FRO... |
-| 97524 | Unparsable error: Found multiple 'WHERE' clauses. Line 1, Col: 286.
-  es AS DestinationWarehouses ON... |
-| 98132 | Unparsable error: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line:... |
-| 99047 | Unparsable error: Found multiple 'WHERE' clauses. Line 1, Col: 177.
-  dern Art', a.id FROM Artwork a... |
+#### Failed items
+
+- **item_id:** 581
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 49, start: 44, end: 48, comments: []>. Line 1, Col: 49.
+  SELECT o.name FROM organization o LEFT JOIN [4mgra...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT o.name FROM organization o LEFT JOIN grant g ON o.id = g.organization_id WHERE g.id IS NULL;
+```
+
+- **item_id:** 882
+- **error:** Unparseable SQL: Required keyword: 'this' missing for <class 'sqlglot.expressions.Where'>. Line 1, Col: 94.
+  SELECT name FROM graduate_students g INNER JOIN professors p ON g.advisor = p.name WHERE [4mgrant[0m = 1 ...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT name FROM graduate_students g INNER JOIN professors p ON g.advisor = p.name WHERE grant = 1 AND p.name LIKE 'S%';
+```
+
+- **item_id:** 2669
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: Grant, line: 1, col: 70, start: 65, end: 69, comments: []>. Line 1, Col: 70.
+  SELECT YEAR(g.year) as year, SUM(g.amount) as total...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT YEAR(g.year) as year, SUM(g.amount) as total_funding FROM Grant g WHERE g.department_id = (SELECT id FROM Department WHERE name = 'Mathematics') GROUP BY YEAR(g.year);
+```
+
+- **item_id:** 6862
+- **error:** Unparseable SQL: Expecting ). Line 1, Col: 39.
+  SELECT department.name, AVG(COUNT([4mgrant[0m.id)) as avg_grants_per_faculty FROM department LEFT JOIN faculty ON department.id = faculty.departm
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT department.name, AVG(COUNT(grant.id)) as avg_grants_per_faculty FROM department LEFT JOIN faculty ON department.id = faculty.department_id LEFT JOIN grant ON faculty.id = grant.faculty_id GROUP BY department.name;
+```
+
+- **item_id:** 8684
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 64, start: 59, end: 63, comments: []>. Line 1, Col: 64.
+  SELECT d.name, g.year, SUM(g.amount) as total_fundi...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT d.name, g.year, SUM(g.amount) as total_funding FROM grant g JOIN department d ON g.department_id = d.id WHERE d.college = 'College of Arts and Humanities' GROUP BY d.name, g.year;
+```
+
+- **item_id:** 10373
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 29, start: 24, end: 28, comments: []>. Line 1, Col: 29.
+  SELECT SUM(amount) FROM [4mgrant[0m WHERE departm...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT SUM(amount) FROM grant WHERE department_id = (SELECT id FROM department WHERE name = 'sciences');
+```
+
+- **item_id:** 12239
+- **error:** Unparseable SQL: Required keyword: 'expressions' missing for <class 'sqlglot.expressions.Values'>. Line 1, Col: 84.
+  INSERT INTO smart_contracts (contract_name, developer_name, num_transactions) [4mVALUES[0m
+- **parseable dialects:** none
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, bigquery, snowflake, tsql
+- **query:**
+```sql
+INSERT INTO smart_contracts (contract_name, developer_name, num_transactions) VALUES
+```
+
+- **item_id:** 13520
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 62, start: 57, end: 61, comments: []>. Line 1, Col: 62.
+  SELECT researcher, COUNT(DISTINCT id) as num_grants...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT researcher, COUNT(DISTINCT id) as num_grants FROM grant WHERE division = 'Arts' GROUP BY researcher ORDER BY num_grants DESC;
+```
+
+- **item_id:** 15024
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 56, start: 51, end: 55, comments: []>. Line 1, Col: 56.
+  SELECT d.name, SUM(g.amount) as total_funding FROM ...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT d.name, SUM(g.amount) as total_funding FROM grant g JOIN department d ON g.department_id = d.id WHERE d.name IN ('English', 'History', 'Philosophy') GROUP BY d.name;
+```
+
+- **item_id:** 15159
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 97, start: 92, end: 96, comments: []>. Line 1, Col: 97.
+  SELECT gender, AVG(amount) as avg_grant_amount FROM...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT gender, AVG(amount) as avg_grant_amount FROM (SELECT researcher, gender, amount FROM grant INNER JOIN researcher ON grant.researcher = researcher.name WHERE department = 'Engineering') AS subquery GROUP BY gender;
+```
+
+- **item_id:** 15316
+- **error:** Unparseable SQL: Required keyword: 'this' missing for <class 'sqlglot.expressions.Where'>. Line 1, Col: 46.
+  SELECT name FROM graduate_students WHERE [4mgrant[0m = 1 AND advisor IS NULL;
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT name FROM graduate_students WHERE grant = 1 AND advisor IS NULL;
+```
+
+- **item_id:** 15398
+- **error:** Unparseable SQL: Invalid expression / Unexpected token. Line 1, Col: 29.
+  SELECT department.name, [4mgrant[0m.year, COUNT(grant.id) as num_grants FROM department LEFT JOIN grant ON department.id = grant.depart
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT department.name, grant.year, COUNT(grant.id) as num_grants FROM department LEFT JOIN grant ON department.id = grant.department_id GROUP BY department.name, grant.year;
+```
+
+- **item_id:** 15842
+- **error:** Unparseable SQL: Found multiple 'WHERE' clauses. Line 1, Col: 291.
+  es AS DestinationWarehouses ON Shipments.DestinationWarehouseID = DestinationWarehouses.WarehouseID [4mWHERE[0m DestinationWarehouses.City = 'Sydn...
+- **parseable dialects:** none
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, bigquery, snowflake, tsql
+- **query:**
+```sql
+SELECT SUM(Shipments.CargoWeight) AS TotalCargoWeight FROM Shipments JOIN Warehouses ON Shipments.OriginWarehouseID = Warehouses.WarehouseID WHERE Warehouses.City = 'Tokyo' JOIN Warehouses AS DestinationWarehouses ON Shipments.DestinationWarehouseID = DestinationWarehouses.WarehouseID WHERE DestinationWarehouses.City = 'Sydney';
+```
+
+- **item_id:** 18312
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 39, start: 34, end: 38, comments: []>. Line 1, Col: 39.
+  SELECT f.name FROM faculty f JOIN [4mgrant[0m g O...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT f.name FROM faculty f JOIN grant g ON f.id = g.faculty_id JOIN student s ON f.id = s.supervisor_id;
+```
+
+- **item_id:** 18675
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 66, start: 61, end: 65, comments: []>. Line 1, Col: 66.
+  SELECT name FROM faculty WHERE id IN (SELECT facult...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT name FROM faculty WHERE id IN (SELECT faculty_id FROM grant);
+```
+
+- **item_id:** 19529
+- **error:** Unparseable SQL: Expecting ). Line 1, Col: 70.
+  SELECT name, ((price - price_history[ARRAY_LENGTH(price_history, 1)] [4m-[0m cost) / (price_history[ARRAY_LENGTH(price_history, 1)] - cost)) * 100 AS price_increase_p...
+- **parseable dialects:** postgres, duckdb, mysql, bigquery, snowflake
+- **not parseable dialects:** sqlite, tsql
+- **query:**
+```sql
+SELECT name, ((price - price_history[ARRAY_LENGTH(price_history, 1)] - cost) / (price_history[ARRAY_LENGTH(price_history, 1)] - cost)) * 100 AS price_increase_percentage FROM dishes WHERE ((price - price_history[ARRAY_LENGTH(price_history, 1)] - cost) / (price_history[ARRAY_LENGTH(price_history, 1)] - cost)) * 100 = (SELECT MAX((price - price_history[ARRAY_LENGTH(price_history, 1)] - cost) / (price_history[ARRAY_LENGTH(price_history, 1)] - cost)) * 100 FROM dishes);
+```
+
+- **item_id:** 19720
+- **error:** Unparseable SQL: Found multiple 'WHERE' clauses. Line 1, Col: 211.
+  ability_rating > 4.5 INNER JOIN Product_Info ON Sustainable_Brands.brand_id = Product_Info.brand_id [4mWHERE[0m shade_type != 'Shimmer';
+- **parseable dialects:** none
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, bigquery, snowflake, tsql
+- **query:**
+```sql
+SELECT product_id FROM Sustainable_Brands WHERE country IN ('United States', 'United Kingdom') AND sustainability_rating > 4.5 INNER JOIN Product_Info ON Sustainable_Brands.brand_id = Product_Info.brand_id WHERE shade_type != 'Shimmer';
+```
+
+- **item_id:** 20139
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 44, start: 39, end: 43, comments: []>. Line 1, Col: 44.
+  SELECT f.name FROM faculty f LEFT JOIN [4mgrant[0...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT f.name FROM faculty f LEFT JOIN grant g ON f.id = g.faculty_id JOIN student s ON f.id = s.supervisor_id WHERE g.id IS NULL;
+```
+
+- **item_id:** 20829
+- **error:** Unparseable SQL: Found multiple 'WHERE' clauses. Line 1, Col: 291.
+  es AS DestinationWarehouses ON Shipments.DestinationWarehouseID = DestinationWarehouses.WarehouseID [4mWHERE[0m DestinationWarehouses.City = 'Rio ...
+- **parseable dialects:** none
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, bigquery, snowflake, tsql
+- **query:**
+```sql
+SELECT SUM(Shipments.CargoWeight) AS TotalCargoWeight FROM Shipments JOIN Warehouses ON Shipments.OriginWarehouseID = Warehouses.WarehouseID WHERE Warehouses.City = 'Delhi' JOIN Warehouses AS DestinationWarehouses ON Shipments.DestinationWarehouseID = DestinationWarehouses.WarehouseID WHERE DestinationWarehouses.City = 'Rio de Janeiro';
+```
+
+- **item_id:** 21248
+- **error:** Unparseable SQL: Expecting ). Line 1, Col: 32.
+  SELECT ((production[year=2018] [4m-[0m production[year=2017])/production[year=2017])*100 FROM Gadolinium_Production WHERE year IN (2017, 2
+- **parseable dialects:** postgres, duckdb, mysql, bigquery, snowflake
+- **not parseable dialects:** sqlite, tsql
+- **query:**
+```sql
+SELECT ((production[year=2018] - production[year=2017])/production[year=2017])*100 FROM Gadolinium_Production WHERE year IN (2017, 2018);
+```
+
+- **item_id:** 22286
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 25, start: 20, end: 24, comments: []>. Line 1, Col: 25.
+  SELECT g.title FROM [4mgrant[0m g JOIN (SELECT gr...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT g.title FROM grant g JOIN (SELECT grant_id FROM publication GROUP BY grant_id HAVING COUNT(*) > 1) p ON g.id = p.grant_id;
+```
+
+- **item_id:** 23904
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 35, start: 30, end: 34, comments: []>. Line 1, Col: 35.
+  SELECT DISTINCT category FROM [4mgrant[0m;
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT DISTINCT category FROM grant;
+```
+
+- **item_id:** 24092
+- **error:** Unparseable SQL: Required keyword: 'this' missing for <class 'sqlglot.expressions.Sum'>. Line 1, Col: 33.
+  SELECT department.name, SUM([4mgrant[0m.amount) as total_grant_amount FROM department INNER JOIN grant ON d...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT department.name, SUM(grant.amount) as total_grant_amount FROM department INNER JOIN grant ON department.id = grant.department_id GROUP BY department.name;
+```
+
+- **item_id:** 26159
+- **error:** Unparseable SQL: Found multiple 'GROUP BY' clauses. Line 1, Col: 94.
+  SELECT AVG(COUNT(*)), Agency FROM CitizenFeedback GROUP BY Agency HAVING COUNT(*) > 0 [4mGROUP BY[0m Agency;
+- **parseable dialects:** none
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, bigquery, snowflake, tsql
+- **query:**
+```sql
+SELECT AVG(COUNT(*)), Agency FROM CitizenFeedback GROUP BY Agency HAVING COUNT(*) > 0 GROUP BY Agency;
+```
+
+- **item_id:** 27927
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 26, start: 21, end: 25, comments: []>. Line 1, Col: 26.
+  SELECT COUNT(*) FROM [4mgrant[0m g JOIN departmen...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT COUNT(*) FROM grant g JOIN department d ON g.department_id = d.id WHERE d.name = 'Department of Electrical Engineering' AND d.college = 'College of Engineering' AND g.year >= YEAR(CURDATE()) - 3;
+```
+
+- **item_id:** 30404
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 98, start: 93, end: 97, comments: []>. Line 1, Col: 98.
+  SELECT f.name, COUNT(g.id) as num_grants, SUM(g.amo...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT f.name, COUNT(g.id) as num_grants, SUM(g.amount) as total_funding FROM faculty f JOIN grant g ON f.id = g.faculty_id GROUP BY f.name;
+```
+
+- **item_id:** 33292
+- **error:** Unparseable SQL: Found multiple 'WHERE' clauses. Line 1, Col: 131.
+  cts WHERE is_fair_trade = true INNER JOIN locations ON products.location_id = locations.location_id [4mWHERE[0m country = 'United Kingdom';
+- **parseable dialects:** none
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, bigquery, snowflake, tsql
+- **query:**
+```sql
+SELECT COUNT(*) FROM products WHERE is_fair_trade = true INNER JOIN locations ON products.location_id = locations.location_id WHERE country = 'United Kingdom';
+```
+
+- **item_id:** 33435
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 39, start: 34, end: 38, comments: []>. Line 1, Col: 39.
+  SELECT s.name FROM student s JOIN [4mgrant[0m g O...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT s.name FROM student s JOIN grant g ON s.id = g.student_id;
+```
+
+- **item_id:** 36432
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: Grant, line: 1, col: 83, start: 78, end: 82, comments: []>. Line 1, Col: 83.
+  SELECT d.name as department, COUNT(g.id) as num_gra...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT d.name as department, COUNT(g.id) as num_grants FROM Department d JOIN Grant g ON d.id = g.department_id WHERE g.year BETWEEN YEAR(CURDATE()) - 3 AND YEAR(CURDATE()) AND g.awarded = TRUE GROUP BY d.name;
+```
+
+- **item_id:** 37337
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 31, start: 26, end: 30, comments: []>. Line 1, Col: 31.
+  SELECT AVG(g.amount) FROM [4mgrant[0m g JOIN depa...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT AVG(g.amount) FROM grant g JOIN department d ON g.department_id = d.id WHERE d.name = 'College of Science';
+```
+
+- **item_id:** 38147
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 81, start: 76, end: 80, comments: []>. Line 1, Col: 81.
+  SELECT AVG(amount) as avg_grant_amount FROM (SELECT...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT AVG(amount) as avg_grant_amount FROM (SELECT researcher, amount FROM grant INNER JOIN researcher ON grant.researcher = researcher.name WHERE department = 'Mathematics' AND gender = 'Female') AS subquery;
+```
+
+- **item_id:** 38591
+- **error:** Unparseable SQL: Found multiple 'GROUP BY' clauses. Line 1, Col: 337.
+  , market_capitalization FROM market_capitalization ORDER BY market_capitalization DESC LIMIT 10) t) [4mGROUP BY[0m m.asset_name;
+- **parseable dialects:** none
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, bigquery, snowflake, tsql
+- **query:**
+```sql
+SELECT m.asset_name, AVG(SUM(a.amount)) as avg_daily_volume FROM market_capitalization m JOIN asset_transactions a ON m.asset_id = a.asset_id GROUP BY m.asset_name HAVING m.asset_name IN (SELECT asset_name FROM (SELECT asset_name, market_capitalization FROM market_capitalization ORDER BY market_capitalization DESC LIMIT 10) t) GROUP BY m.asset_name;
+```
+
+- **item_id:** 44934
+- **error:** Unparseable SQL: Invalid expression / Unexpected token. Line 1, Col: 20.
+  SELECT country[1] [4mAS[0m first_letter, AVG(co2_emission) AS avg_co2_emission FROM emissions WHERE year = 2015 GROUP BY count
+- **parseable dialects:** postgres, duckdb, mysql, bigquery, snowflake
+- **not parseable dialects:** sqlite, tsql
+- **query:**
+```sql
+SELECT country[1] AS first_letter, AVG(co2_emission) AS avg_co2_emission FROM emissions WHERE year = 2015 GROUP BY country[1] ORDER BY avg_co2_emission DESC;
+```
+
+- **item_id:** 45527
+- **error:** Unparseable SQL: Required keyword: 'expressions' missing for <class 'sqlglot.expressions.Values'>. Line 1, Col: 101.
+  INSERT INTO multimodal_routes (route_id, route_type, route_start_location, route_end_location) [4...
+- **parseable dialects:** none
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, bigquery, snowflake, tsql
+- **query:**
+```sql
+INSERT INTO multimodal_routes (route_id, route_type, route_start_location, route_end_location) VALUES
+```
+
+- **item_id:** 45859
+- **error:** Unparseable SQL: Found multiple 'GROUP BY' clauses. Line 1, Col: 521.
+  te_name FROM Experts WHERE country IN (SELECT country FROM Experts WHERE expertise = 'Metalwork'))) [4mGROUP BY[0m site;
+- **parseable dialects:** none
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, bigquery, snowflake, tsql
+- **query:**
+```sql
+SELECT site, COUNT(*) as artifact_count FROM Artifacts GROUP BY site HAVING artifact_count = (SELECT MAX(artifact_count) FROM (SELECT site, COUNT(*) as artifact_count FROM Artifacts GROUP BY site) as subquery) AND site IN (SELECT site_name FROM (SELECT site_name FROM Sites WHERE type = 'Settlement' AND location IN (SELECT location FROM Sites WHERE period = 'Period2')) as subquery2 WHERE site_name IN (SELECT site_name FROM Experts WHERE country IN (SELECT country FROM Experts WHERE expertise = 'Metalwork'))) GROUP BY site;
+```
+
+- **item_id:** 47040
+- **error:** Unparseable SQL: Invalid expression / Unexpected token. Line 1, Col: 29.
+  SELECT production[year=2020][4m/[0m(SELECT production FROM Holmium_Production WHERE year = 2020) FROM Promethium_Production WHERE year
+- **parseable dialects:** postgres, duckdb, mysql, bigquery, snowflake
+- **not parseable dialects:** sqlite, tsql
+- **query:**
+```sql
+SELECT production[year=2020]/(SELECT production FROM Holmium_Production WHERE year = 2020) FROM Promethium_Production WHERE year = 2020;
+```
+
+- **item_id:** 47314
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 70, start: 65, end: 69, comments: []>. Line 1, Col: 70.
+  SELECT gender, researcher, COUNT(DISTINCT id) as nu...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT gender, researcher, COUNT(DISTINCT id) as num_grants FROM grant WHERE division = 'Business' GROUP BY gender, researcher ORDER BY num_grants DESC;
+```
+
+- **item_id:** 48645
+- **error:** Unparseable SQL: Invalid expression / Unexpected token. Line 1, Col: 120.
+  SELECT county_id, COUNT(*) AS years FROM costs WHERE costs[4m[ROW_NUMBER() OVER (PARTITION BY county_id ORDER BY year) - 1][0m < cost GROUP...
+- **parseable dialects:** postgres, duckdb, mysql, bigquery, snowflake
+- **not parseable dialects:** sqlite, tsql
+- **query:**
+```sql
+SELECT county_id, COUNT(*) AS years FROM costs WHERE costs[ROW_NUMBER() OVER (PARTITION BY county_id ORDER BY year) - 1] < cost GROUP BY county_id HAVING COUNT(*) = 5 AND county_id IN (SELECT county_id FROM costs WHERE state = 'Montana');
+```
+
+- **item_id:** 51089
+- **error:** Unparseable SQL: Required keyword: 'this' missing for <class 'sqlglot.expressions.Where'>. Line 1, Col: 58.
+  SELECT name, research_interest FROM professors WHERE [4mgrant[0m = 0;
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT name, research_interest FROM professors WHERE grant = 0;
+```
+
+- **item_id:** 51125
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 29, start: 24, end: 28, comments: []>. Line 1, Col: 29.
+  SELECT MIN(g.year) FROM [4mgrant[0m g JOIN depart...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT MIN(g.year) FROM grant g JOIN department d ON g.department_id = d.id WHERE d.name = 'Department of Biology' AND d.college = 'College of Science';
+```
+
+- **item_id:** 55468
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 29, start: 24, end: 28, comments: []>. Line 1, Col: 29.
+  SELECT MIN(g.year) FROM [4mgrant[0m g JOIN depart...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT MIN(g.year) FROM grant g JOIN department d ON g.department_id = d.id WHERE d.name = 'Department of Mechanical Engineering' AND d.college = 'College of Engineering';
+```
+
+- **item_id:** 56378
+- **error:** Unparseable SQL: Expecting ). Line 1, Col: 32.
+  SELECT ((production[year=2019] [4m-[0m production[year=2018])/production[year=2018])*100 FROM Praseodymium_Production WHERE year IN (2018,
+- **parseable dialects:** postgres, duckdb, mysql, bigquery, snowflake
+- **not parseable dialects:** sqlite, tsql
+- **query:**
+```sql
+SELECT ((production[year=2019] - production[year=2018])/production[year=2018])*100 FROM Praseodymium_Production WHERE year IN (2018, 2019);
+```
+
+- **item_id:** 58936
+- **error:** Unparseable SQL: Required keyword: 'this' missing for <class 'sqlglot.expressions.Sum'>. Line 1, Col: 33.
+  SELECT department.name, SUM([4mgrant[0m.amount) FROM department INNER JOIN grant ON department.id = grant.d...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT department.name, SUM(grant.amount) FROM department INNER JOIN grant ON department.id = grant.department_id GROUP BY department.name;
+```
+
+- **item_id:** 60472
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 53, start: 48, end: 52, comments: []>. Line 1, Col: 53.
+  SELECT gender, SUM(amount) as total_amount FROM [4...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT gender, SUM(amount) as total_amount FROM grant GROUP BY gender ORDER BY total_amount DESC;
+```
+
+- **item_id:** 61503
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 70, start: 65, end: 69, comments: []>. Line 1, Col: 70.
+  SELECT name FROM faculty WHERE id NOT IN (SELECT fa...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT name FROM faculty WHERE id NOT IN (SELECT faculty_id FROM grant);
+```
+
+- **item_id:** 61554
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 29, start: 24, end: 28, comments: []>. Line 1, Col: 29.
+  SELECT MAX(amount) FROM [4mgrant[0m g JOIN depart...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT MAX(amount) FROM grant g JOIN department d ON g.department_id = d.id WHERE d.college = 'College of Science';
+```
+
+- **item_id:** 62490
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 82, start: 77, end: 81, comments: []>. Line 1, Col: 82.
+  SELECT p.name, AVG(g.impact_factor) as avg_impact_f...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT p.name, AVG(g.impact_factor) as avg_impact_factor FROM program p JOIN grant g ON p.id = g.program_id GROUP BY p.name ORDER BY avg_impact_factor DESC LIMIT 1;
+```
+
+- **item_id:** 63282
+- **error:** Unparseable SQL: Invalid expression / Unexpected token. Line 1, Col: 29.
+  SELECT production[year=2019][4m/[0m(SELECT production FROM Cerium_Production WHERE year = 2019) FROM Lanthanum_Production WHERE year =
+- **parseable dialects:** postgres, duckdb, mysql, bigquery, snowflake
+- **not parseable dialects:** sqlite, tsql
+- **query:**
+```sql
+SELECT production[year=2019]/(SELECT production FROM Cerium_Production WHERE year = 2019) FROM Lanthanum_Production WHERE year = 2019;
+```
+
+- **item_id:** 65053
+- **error:** Unparseable SQL: Required keyword: 'this' missing for <class 'sqlglot.expressions.Where'>. Line 1, Col: 58.
+  SELECT name, research_interest FROM professors WHERE [4mgrant[0m = 1;
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT name, research_interest FROM professors WHERE grant = 1;
+```
+
+- **item_id:** 66175
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 29, start: 24, end: 28, comments: []>. Line 1, Col: 29.
+  SELECT SUM(amount) FROM [4mgrant[0m WHERE departm...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT SUM(amount) FROM grant WHERE department = 'Physics' AND (YEAR(grant_date) = 2019 OR YEAR(grant_date) = 2020);
+```
+
+- **item_id:** 67496
+- **error:** Unparseable SQL: Expecting ). Line 1, Col: 169.
+  dget FROM defense_projects_3 WHERE project_name = defense_projects_3.project_name AND year = 2021)] [4m*[0m 1.10) < budget WHERE year = 2022;
+- **parseable dialects:** none
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, bigquery, snowflake, tsql
+- **query:**
+```sql
+SELECT project_name FROM defense_projects_3 WHERE (budget[(SELECT budget FROM defense_projects_3 WHERE project_name = defense_projects_3.project_name AND year = 2021)] * 1.10) < budget WHERE year = 2022;
+```
+
+- **item_id:** 70721
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 88, start: 83, end: 87, comments: []>. Line 1, Col: 88.
+  SELECT s.name FROM student s JOIN publication p ON ...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT s.name FROM student s JOIN publication p ON s.id IN (SELECT student_id FROM grant WHERE title IN (SELECT title FROM publication WHERE impact_factor = (SELECT MAX(impact_factor) FROM publication)));
+```
+
+- **item_id:** 72689
+- **error:** Unparseable SQL: Invalid expression / Unexpected token. Line 1, Col: 25.
+  SELECT species_name[1] [4mAS[0m first_letter, AVG(biomass) AS avg_biomass FROM species_data GROUP BY species_name[1] ORDER BY avg_b
+- **parseable dialects:** postgres, duckdb, mysql, bigquery, snowflake
+- **not parseable dialects:** sqlite, tsql
+- **query:**
+```sql
+SELECT species_name[1] AS first_letter, AVG(biomass) AS avg_biomass FROM species_data GROUP BY species_name[1] ORDER BY avg_biomass DESC;
+```
+
+- **item_id:** 73102
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 29, start: 24, end: 28, comments: []>. Line 1, Col: 29.
+  SELECT AVG(amount) FROM [4mgrant[0m g JOIN depart...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT AVG(amount) FROM grant g JOIN department d ON g.department_id = d.id WHERE d.name = 'Department of Computer Science' AND d.college = 'College of Engineering' GROUP BY g.year;
+```
+
+- **item_id:** 75868
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 44, start: 39, end: 43, comments: []>. Line 1, Col: 44.
+  SELECT s.name FROM student s LEFT JOIN [4mgrant[0...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT s.name FROM student s LEFT JOIN grant g ON s.id = g.student_id WHERE g.id IS NULL;
+```
+
+- **item_id:** 77402
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 25, start: 20, end: 24, comments: []>. Line 1, Col: 25.
+  SELECT g.title FROM [4mgrant[0m g JOIN publicatio...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT g.title FROM grant g JOIN publication p ON g.title = p.title WHERE p.impact_factor < 3;
+```
+
+- **item_id:** 79761
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: Grant, line: 1, col: 69, start: 64, end: 68, comments: []>. Line 1, Col: 69.
+  SELECT YEAR(g.year) as year, SUM(g.amount) as total...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT YEAR(g.year) as year, SUM(g.amount) as total_grants FROM Grant g WHERE g.department_id = (SELECT id FROM Department WHERE name = 'Physics') GROUP BY YEAR(g.year);
+```
+
+- **item_id:** 79922
+- **error:** Unparseable SQL: Required keyword: 'this' missing for <class 'sqlglot.expressions.Sum'>. Line 1, Col: 32.
+  SELECT student.gender, SUM([4mgrant[0m.amount) as total_grant_amount FROM grant CROSS JOIN student GROUP BY...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT student.gender, SUM(grant.amount) as total_grant_amount FROM grant CROSS JOIN student GROUP BY student.gender;
+```
+
+- **item_id:** 80985
+- **error:** Unparseable SQL: Required keyword: 'this' missing for <class 'sqlglot.expressions.Avg'>. Line 1, Col: 33.
+  SELECT department.name, AVG([4mgrant[0m.amount) FROM department INNER JOIN researcher ON department.id = re...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT department.name, AVG(grant.amount) FROM department INNER JOIN researcher ON department.id = researcher.department_id INNER JOIN grant ON researcher.id = grant.researcher_id WHERE department.name = 'Computer Science' GROUP BY department.name;
+```
+
+- **item_id:** 81472
+- **error:** Unparseable SQL: Expecting ). Line 1, Col: 281.
+  d, client_id, 0.00 payment_amount, CURRENT_DATE payment_date FROM generate_series(1, 5) payment_id, [4mUNNEST[0m(ARRAY[7, 8]) client_id) new_payments WHERE NOT EXIST...
+- **parseable dialects:** postgres, duckdb, mysql, bigquery, snowflake
+- **not parseable dialects:** sqlite, tsql
+- **query:**
+```sql
+INSERT INTO financial_wellbeing_payment (payment_id, client_id, payment_amount, payment_date) SELECT payment_id, client_id, payment_amount, payment_date FROM (SELECT payment_id, client_id, 0.00 payment_amount, CURRENT_DATE payment_date FROM generate_series(1, 5) payment_id, UNNEST(ARRAY[7, 8]) client_id) new_payments WHERE NOT EXISTS (SELECT 1 FROM financial_wellbeing_payment p WHERE p.payment_id = new_payments.payment_id AND p.client_id = new_payments.client_id);
+```
+
+- **item_id:** 83172
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 29, start: 24, end: 28, comments: []>. Line 1, Col: 29.
+  SELECT AVG(amount) FROM [4mgrant[0m g JOIN depart...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT AVG(amount) FROM grant g JOIN department d ON g.department_id = d.id WHERE d.name = 'Department of Chemistry' AND d.college = 'College of Science' GROUP BY g.year;
+```
+
+- **item_id:** 85187
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 44, start: 39, end: 43, comments: []>. Line 1, Col: 44.
+  SELECT o.name FROM organization o JOIN [4mgrant[0...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT o.name FROM organization o JOIN grant g ON o.id = g.organization_id WHERE g.foundation_name = 'Arthur Foundation';
+```
+
+- **item_id:** 86574
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 57, start: 52, end: 56, comments: []>. Line 1, Col: 57.
+  SELECT department, SUM(amount) as total_amount FROM...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT department, SUM(amount) as total_amount FROM grant GROUP BY department ORDER BY total_amount DESC;
+```
+
+- **item_id:** 86835
+- **error:** Unparseable SQL: Found multiple 'GROUP BY' clauses. Line 1, Col: 276.
+  , Country, COUNT(*) as num_of_vehicles FROM VehicleCountries GROUP BY Vehicle, Country) as VCGroup) [4mGROUP BY[0m Vehicle, Country;
+- **parseable dialects:** none
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, bigquery, snowflake, tsql
+- **query:**
+```sql
+SELECT Vehicle, Country, COUNT(*) as num_of_vehicles FROM VehicleCountries GROUP BY Vehicle, Country HAVING COUNT(*) = (SELECT MAX(num_of_vehicles) FROM (SELECT Vehicle, Country, COUNT(*) as num_of_vehicles FROM VehicleCountries GROUP BY Vehicle, Country) as VCGroup) GROUP BY Vehicle, Country;
+```
+
+- **item_id:** 87244
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 29, start: 24, end: 28, comments: []>. Line 1, Col: 29.
+  SELECT SUM(amount) FROM [4mgrant[0m g JOIN depart...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT SUM(amount) FROM grant g JOIN department d ON g.department_id = d.id WHERE d.name = 'Department of Physics' AND g.year >= YEAR(CURDATE()) - 5;
+```
+
+- **item_id:** 89652
+- **error:** Unparseable SQL: Found multiple 'WHERE' clauses. Line 1, Col: 131.
+  cts WHERE is_fair_trade = true INNER JOIN locations ON products.location_id = locations.location_id [4mWHERE[0m country = 'Egypt';
+- **parseable dialects:** none
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, bigquery, snowflake, tsql
+- **query:**
+```sql
+SELECT COUNT(*) FROM products WHERE is_fair_trade = true INNER JOIN locations ON products.location_id = locations.location_id WHERE country = 'Egypt';
+```
+
+- **item_id:** 90236
+- **error:** Unparseable SQL: Found multiple 'WHERE' clauses. Line 1, Col: 315.
+  es AS DestinationWarehouses ON Shipments.DestinationWarehouseID = DestinationWarehouses.WarehouseID [4mWHERE[0m DestinationWarehouses.City = 'New ...
+- **parseable dialects:** none
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, bigquery, snowflake, tsql
+- **query:**
+```sql
+SELECT Shipments.ShipmentID, SUM(Shipments.CargoWeight) AS TotalCargoWeight FROM Shipments JOIN Warehouses ON Shipments.OriginWarehouseID = Warehouses.WarehouseID WHERE Warehouses.City = 'Seattle' JOIN Warehouses AS DestinationWarehouses ON Shipments.DestinationWarehouseID = DestinationWarehouses.WarehouseID WHERE DestinationWarehouses.City = 'New York' GROUP BY Shipments.ShipmentID;
+```
+
+- **item_id:** 90818
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 88, start: 83, end: 87, comments: []>. Line 1, Col: 88.
+  SELECT s.name FROM student s JOIN publication p ON ...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT s.name FROM student s JOIN publication p ON s.id IN (SELECT student_id FROM grant WHERE title IN (SELECT title FROM publication WHERE impact_factor > 5));
+```
+
+- **item_id:** 94331
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 25, start: 20, end: 24, comments: []>. Line 1, Col: 25.
+  SELECT g.title FROM [4mgrant[0m g LEFT JOIN publi...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT g.title FROM grant g LEFT JOIN publication p ON g.title = p.title WHERE p.id IS NULL;
+```
+
+- **item_id:** 94837
+- **error:** Unparseable SQL: Invalid expression / Unexpected token. Line 1, Col: 166.
+  SELECT project_name FROM defense_projects_2 WHERE budget[4m[(SELECT budget FROM defense_projects_2 WHERE project_name = defense_projects_2.p...
+- **parseable dialects:** none
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, bigquery, snowflake, tsql
+- **query:**
+```sql
+SELECT project_name FROM defense_projects_2 WHERE budget[(SELECT budget FROM defense_projects_2 WHERE project_name = defense_projects_2.project_name AND year = 2021)] > budget WHERE year = 2022;
+```
+
+- **item_id:** 97524
+- **error:** Unparseable SQL: Found multiple 'WHERE' clauses. Line 1, Col: 286.
+  es AS DestinationWarehouses ON Shipments.DestinationWarehouseID = DestinationWarehouses.WarehouseID [4mWHERE[0m DestinationWarehouses.City = 'Los ...
+- **parseable dialects:** none
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, bigquery, snowflake, tsql
+- **query:**
+```sql
+SELECT SUM(Shipments.Pallets) AS TotalPallets FROM Shipments JOIN Warehouses ON Shipments.OriginWarehouseID = Warehouses.WarehouseID WHERE Warehouses.City = 'New York' JOIN Warehouses AS DestinationWarehouses ON Shipments.DestinationWarehouseID = DestinationWarehouses.WarehouseID WHERE DestinationWarehouses.City = 'Los Angeles';
+```
+
+- **item_id:** 98132
+- **error:** Unparseable SQL: Expected table name but got <Token token_type: TokenType.GRANT, text: grant, line: 1, col: 47, start: 42, end: 46, comments: []>. Line 1, Col: 47.
+  SELECT year, COUNT(id) as num_grants FROM [4mgrant...
+- **parseable dialects:** bigquery
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, snowflake, tsql
+- **query:**
+```sql
+SELECT year, COUNT(id) as num_grants FROM grant GROUP BY year;
+```
+
+- **item_id:** 99047
+- **error:** Unparseable SQL: Found multiple 'WHERE' clauses. Line 1, Col: 177.
+  dern Art', a.id FROM Artwork a JOIN Artists ar ON a.artist_id = ar.id WHERE ar.name = 'Frida Kahlo' [4mWHERE[0m a.id NOT IN (SELECT artwork_id FRO...
+- **parseable dialects:** none
+- **not parseable dialects:** sqlite, postgres, duckdb, mysql, bigquery, snowflake, tsql
+- **query:**
+```sql
+INSERT INTO Galleries (id, title, artwork_id) SELECT NULL, 'Museum of Modern Art', a.id FROM Artwork a JOIN Artists ar ON a.artist_id = ar.id WHERE ar.name = 'Frida Kahlo' WHERE a.id NOT IN (SELECT artwork_id FROM Galleries);
+```

@@ -64,6 +64,7 @@ class QueryAntipatternMetricEvent(MetricEvent):
     """Typed metric event for query antipattern detection."""
     event_type: str = "query_analysis"
     name: str = "query_antipattern"
+    failed_query: str | None = None
 
     features: QueryAntipatternFeatures
     stats: QueryAntipatternStats = Field(default_factory=QueryAntipatternStats)

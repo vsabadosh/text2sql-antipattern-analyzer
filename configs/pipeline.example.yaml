@@ -11,13 +11,13 @@ dialect: sqlite
 load:
   name: jsonl    # jsonl | json | csv
   params:
-    path: data_examples/spider/spider_dev_new.jsonl
+    path: data_examples/gretel/gretel_train.jsonl
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PROGRESS TRACKING
 # ═══════════════════════════════════════════════════════════════════════════════
 progress:
-  expected_items: 1000
+  expected_items: 100000
   show_progress: true
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -25,24 +25,24 @@ progress:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # Spider format
-normalize:
-  - name: alias_mapper
-    params:
-      mapping:
-        id: id
-        question: question
-        sql: query
-        dbId: db_id
-
-# Gretel format
 # normalize:
 #   - name: alias_mapper
 #     params:
 #       mapping:
 #         id: id
-#         question: sql_prompt
-#         sql: sql
-#         schema: sql_context
+#         question: question
+#         sql: query
+#         dbId: db_id
+
+# Gretel format
+normalize:
+  - name: alias_mapper
+    params:
+      mapping:
+        id: id
+        question: sql_prompt
+        sql: sql
+        schema: sql_context
 
 # Bird format
 # normalize:
@@ -130,7 +130,7 @@ analyze:
 # OUTPUT
 # ═══════════════════════════════════════════════════════════════════════════════
 output:
-  dataset_name: SPIDER_DEV
+  dataset_name: GRETEL_DAT
   # base_dir: "."
 
   jsonl_enabled: true

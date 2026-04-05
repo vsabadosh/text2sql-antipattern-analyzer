@@ -50,6 +50,7 @@ class DuckDBMetricsSink(MetricsSink):
             success BOOLEAN,
             duration_ms DOUBLE,
             err VARCHAR,
+            failed_query VARCHAR,
             parseable BOOLEAN,
             has_unsafe_update_delete BOOLEAN,
             has_null_comparison_equals BOOLEAN,
@@ -111,7 +112,7 @@ class DuckDBMetricsSink(MetricsSink):
             self._flush_table(table_name, analyzer_name)
 
     def flush(self) -> None:
-        for table_name in list(self._batches.keys()):
+        for table_name in self._batches:
             analyzer_name = table_name.replace("metrics_", "")
             self._flush_table(table_name, analyzer_name)
 
@@ -145,7 +146,7 @@ class DuckDBMetricsSink(MetricsSink):
                     ?, ?, ?, ?, ?,
                     ?, ?, ?, ?, ?,
                     ?, ?, ?, ?, ?,
-                    ?, ?, ?
+                    ?, ?, ?, ?
                 )
             """, [
                 rec.get("ts"),
@@ -159,6 +160,7 @@ class DuckDBMetricsSink(MetricsSink):
                 rec.get("success"),
                 rec.get("duration_ms"),
                 rec.get("err"),
+                rec.get("failed_query"),
                 features.get("parseable"),
                 features.get("has_unsafe_update_delete"),
                 features.get("has_null_comparison_equals"),

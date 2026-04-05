@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Iterable, Iterator
 import time
+import sqlglot
 
 from text2sql_antipattern.analyzers.query_antipattern.antipattern_detector import detect_antipatterns
 from text2sql_antipattern.analyzers.query_antipattern.antipattern_registry import select_config_for_dialect
@@ -85,6 +86,7 @@ class QueryAntipatternAnalyzer(AnnotatingAnalyzer):
                 success=(status == "ok"),
                 duration_ms=duration_ms,
                 err=err,
+                failed_query=item.sql if status == "failed" else None,
                 features=features,
                 stats=stats,
                 tags=tags
@@ -132,8 +134,23 @@ class QueryAntipatternAnalyzer(AnnotatingAnalyzer):
                 penalties=self.penalties_config
             )
             ok = features.parseable
-            return features, stats, tags, ok, None if ok else "Unparseable SQL"
+            if ok:
+                return features, stats, tags, True, None
+
+            parse_error = self._build_parse_error_message(item.sql)
+            stats.errors.append({"kind": "parse_error", "message": parse_error})
+            return features, stats, tags, False, parse_error
         except Exception as e:
             features = QueryAntipatternFeatures(parseable=False, quality_score=0, quality_level="poor")
             stats.errors.append({"kind": "detection_error", "message": str(e)})
             return features, stats, tags, False, f"Detection error: {e}"
+
+    def _build_parse_error_message(self, sql: str, max_len: int = 200) -> str:
+        try:
+            sqlglot.parse_one(sql, read=self.db_dialect or "sqlite")
+            return "Unparseable SQL"
+        except Exception as e:
+            detail = str(e).strip() or repr(e)
+            if len(detail) > max_len:
+                detail = f"{detail[:max_len]}..."
+            return f"Unparseable SQL: {detail}"

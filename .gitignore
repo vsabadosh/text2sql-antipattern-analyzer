@@ -1,0 +1,195 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+# macOS metadata files
+/.DS_Store
+**/.DS_Store
+
+# Project specific
+*.sqlite
+*.db
+*secrets-intellias.txt
+*Spider Dataset_*
+*Spider_Test_Dataset_*
+*database*
+# *Article*
+SUPER_SECURE.md
+*Spider_ALL*
+*Article*
+*DatasetAnalysisForArticle*
+docs/e-Informatica.txt
+data_examples/spider/spider_train.jsonl
+data_examples/spider/spider_test_new.jsonl
+data_examples/spider/spider_dev_new.jsonl
+data_examples/train-failed.jsonl
+data_examples/spider-tiny-10.jsonl
+data_examples/spider_tiny.jsonl
+data_examples/spider_test.json
+data_examples/spider_small.jsonl
+data_examples/spider_fixed_small.jsonl
+data_examples/spider_fixed.jsonl
+data_examples/spider_fixed_10.jsonl
+data_examples/merged_filtered_test_dev.jsonl
+data_examples/bird_error.jsonl
+data_examples/bird_all.jsonl
+data_examples/spider_tiny.jsonl
+data_examples/spider_tiny.jsonl
+data_examples/bird
+data_examples/gretel
+BIRD_*
+Spider_TRAIN*
+Spider_TEST*
+Spider_DEV*
+*GRETEL_DAT*
+*Archive_DOC*
+*FINAL*
+*sqlcheck*
+# Allow committing selected "For_Article" deliverables under MainSpiderResults/
+!MainSpiderResults/
+!MainSpiderResults/DatasetAnalysisForArticle.zip
+!MainSpiderResults/SpiderDevDataset_For_Article
+!MainSpiderResults/SpiderDevDataset_For_Article/**
+!MainSpiderResults/SpiderTestDataset_For_Article/
+!MainSpiderResults/SpiderTestDataset_For_Article/**
+!MainSpiderResults/SpiderTrainDataset_For_Article_ALL_8659/
+!MainSpiderResults/SpiderTrainDataset_For_Article_ALL_8659/**

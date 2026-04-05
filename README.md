@@ -87,7 +87,7 @@ output:
 | Critical | `null_comparison_equals` | `= NULL` instead of `IS NULL` |
 | Critical | `unsafe_update_delete` | UPDATE/DELETE without WHERE |
 | Critical | `cartesian_product` | Missing JOIN condition |
-| Critical | `missing_group_by` | Non-aggregated columns without GROUP BY |
+| High | `missing_group_by` | Non-aggregated columns without GROUP BY |
 | High | `not_in_nullable` | `NOT IN` with nullable subquery |
 | High | `limit_without_order_by` | LIMIT without ORDER BY |
 | High | `offset_without_order_by` | OFFSET without ORDER BY |
