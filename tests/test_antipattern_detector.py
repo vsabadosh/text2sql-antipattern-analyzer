@@ -3829,27 +3829,428 @@ class TestReviewEdgeCases:
 
 
 class TestCartesianWhereRescueScoping:
-    """WHERE predicates should rescue comma-joins but NOT explicit JOINs
-    with tautological or missing ON clauses."""
+    """A real inter-table WHERE predicate connects sources regardless of syntax."""
 
-    def test_join_on_1eq1_with_where_predicate_still_cartesian(self):
-        """JOIN ON 1=1 is a code smell even if WHERE connects the tables."""
+    def test_join_on_1eq1_with_where_predicate_not_cartesian(self):
+        """A theta predicate in WHERE makes the inner join non-Cartesian."""
         sql = """
-        SELECT c.price FROM co_ownership c
-        JOIN (SELECT AVG(price) AS avg_price FROM property) AS p ON 1 = 1
-        WHERE c.price > p.avg_price
+        SELECT u.id
+        FROM users AS u
+        JOIN orders AS o ON 1 = 1
+        WHERE u.id = o.user_id
+        """
+        result = detect_antipatterns(sql)
+        assert result.parseable is True
+        assert result.has_cartesian_product is False
+
+    def test_join_without_on_with_where_predicate_not_cartesian(self):
+        """A JOIN predicate may be written in WHERE rather than ON."""
+        sql = """
+        SELECT u.id
+        FROM users AS u
+        JOIN orders AS o
+        WHERE u.id = o.user_id
+        """
+        result = detect_antipatterns(sql)
+        assert result.parseable is True
+        assert result.has_cartesian_product is False
+
+    def test_join_on_true_with_separate_filters_still_cartesian(self):
+        """Independent filters do not connect the two joined tables."""
+        sql = """
+        SELECT *
+        FROM users AS u
+        JOIN orders AS o ON TRUE
+        WHERE u.active = 1 AND o.status = 'open'
         """
         result = detect_antipatterns(sql)
         assert result.has_cartesian_product is True
 
-    def test_join_without_on_with_where_predicate_still_cartesian(self):
-        """JOIN without ON at all is cartesian even if WHERE references both."""
+    def test_join_on_separate_filters_still_cartesian(self):
+        """Independent ON filters do not form an inter-table predicate."""
         sql = """
-        SELECT T2.n_name
-        FROM customer AS T1
-        INNER JOIN nation AS T2 ON T1.c_nationkey = T2.n_nationkey
-        INNER JOIN (SELECT AVG(c_acctbal) * 0.8 AS avg_acctbal FROM customer) AS T3
-        WHERE T1.c_acctbal > T3.avg_acctbal
+        SELECT *
+        FROM users AS u
+        JOIN orders AS o ON u.active = 1 AND o.status = 'open'
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_disconnected_where_join_graph_still_cartesian(self):
+        """Two internally joined components still form a Cartesian product."""
+        sql = """
+        SELECT *
+        FROM a
+        JOIN b ON TRUE
+        JOIN c ON TRUE
+        JOIN d ON TRUE
+        WHERE a.id = b.a_id AND c.id = d.c_id
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_where_in_predicate_connects_tables(self):
+        """A cross-table IN predicate is a valid theta-join condition."""
+        sql = """
+        SELECT *
+        FROM athletes AS a
+        JOIN games AS g ON TRUE
+        WHERE a.team_id IN (g.home_team_id, g.away_team_id)
+        """
+        result = detect_antipatterns(sql)
+        assert result.parseable is True
+        assert result.has_cartesian_product is False
+
+    def test_where_in_with_local_alternative_still_cartesian(self):
+        """An IN self-alternative leaves the other source unconstrained."""
+        sql = """
+        SELECT *
+        FROM athletes AS a
+        JOIN games AS g ON TRUE
+        WHERE a.team_id IN (a.team_id, g.home_team_id)
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_tuple_in_preserves_disconnected_join_components(self):
+        """Tuple equality creates positional edges, not one four-way edge."""
+        sql = """
+        SELECT *
+        FROM a, b, c, d
+        WHERE (a.x, b.x) IN ((c.x, d.x))
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_tuple_equality_preserves_disconnected_join_components(self):
+        """Row equality also creates one edge per tuple position."""
+        sql = """
+        SELECT *
+        FROM a, b, c, d
+        WHERE (a.x, b.x) = (c.x, d.x)
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_tuple_in_can_connect_sources_through_shared_table(self):
+        """Both tuple positions may legitimately connect through one source."""
+        sql = """
+        SELECT *
+        FROM a, b, c
+        WHERE (a.x, b.x) IN ((c.x, c.y))
+        """
+        result = detect_antipatterns(sql)
+        assert result.parseable is True
+        assert result.has_cartesian_product is False
+
+    @pytest.mark.parametrize(
+        "source_sql",
+        [
+            "SELECT COUNT(*) AS value FROM orders",
+            "SELECT AVG(total) AS value FROM orders",
+            "SELECT total AS value FROM orders LIMIT 1",
+            "SELECT total AS value FROM orders FETCH FIRST 1 ROW ONLY",
+            "SELECT 1 AS value",
+        ],
+    )
+    def test_provably_scalar_derived_source_not_cartesian(self, source_sql):
+        """A source guaranteed to yield at most one row cannot multiply rows."""
+        sql = f"SELECT u.id FROM users AS u CROSS JOIN ({source_sql}) AS s"
+        result = detect_antipatterns(sql)
+        assert result.parseable is True
+        assert result.has_cartesian_product is False
+
+    def test_provably_scalar_cte_source_not_cartesian(self):
+        """A one-row CTE is equivalent to a one-row inline derived source."""
+        sql = """
+        WITH constants AS (SELECT 1 AS n)
+        SELECT a.id
+        FROM accounts AS a
+        CROSS JOIN constants
+        """
+        result = detect_antipatterns(sql)
+        assert result.parseable is True
+        assert result.has_cartesian_product is False
+
+    def test_non_scalar_cte_source_still_cartesian(self):
+        """A CTE with unconstrained rows remains a multiplying source."""
+        sql = """
+        WITH values_cte AS (SELECT n FROM numbers)
+        SELECT a.id
+        FROM accounts AS a
+        CROSS JOIN values_cte
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_qualified_table_does_not_bind_to_same_named_scalar_cte(self):
+        """A qualified physical table bypasses an unqualified CTE name."""
+        sql = """
+        WITH values_table AS (SELECT 1 AS n)
+        SELECT *
+        FROM accounts AS a
+        CROSS JOIN schema_one.values_table
+        """
+        result = detect_antipatterns(sql, dialect="duckdb")
+        assert result.has_cartesian_product is True
+
+    @pytest.mark.parametrize(
+        ("source_sql", "dialect"),
+        [
+            (
+                "SELECT total FROM orders ORDER BY total "
+                "FETCH FIRST 1 ROW WITH TIES",
+                "postgres",
+            ),
+            (
+                "SELECT total FROM orders FETCH FIRST 1 PERCENT ROWS ONLY",
+                "snowflake",
+            ),
+            ("SELECT TOP 1 PERCENT total FROM orders", "tsql"),
+            ("SELECT total FROM orders LIMIT 1 BY status", "clickhouse"),
+        ],
+    )
+    def test_non_absolute_row_limit_source_still_cartesian(
+        self, source_sql, dialect
+    ):
+        """WITH TIES, PERCENT, and LIMIT BY may all return multiple rows."""
+        sql = f"SELECT u.id FROM users AS u CROSS JOIN ({source_sql}) AS s"
+        result = detect_antipatterns(sql, dialect=dialect)
+        assert result.parseable is True
+        assert result.has_cartesian_product is True
+
+    @pytest.mark.parametrize(
+        "source_sql",
+        [
+            "SELECT GENERATE_SERIES(1, 10) AS n",
+            "SELECT UNNEST(ARRAY_AGG(id)) AS n FROM orders",
+        ],
+    )
+    def test_set_returning_projection_source_still_cartesian(self, source_sql):
+        """A set-returning projection invalidates an otherwise scalar shape."""
+        sql = f"SELECT u.id FROM users AS u CROSS JOIN ({source_sql}) AS s"
+        result = detect_antipatterns(sql, dialect="postgres")
+        assert result.parseable is True
+        assert result.has_cartesian_product is True
+
+    def test_comma_join_of_two_scalar_aggregates_not_cartesian(self):
+        """Comparing two scalar aggregates yields one row, whatever the syntax."""
+        sql = """
+        SELECT a.total - b.total
+        FROM (SELECT SUM(x) AS total FROM t1) AS a,
+             (SELECT SUM(x) AS total FROM t2) AS b
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is False
+
+    def test_scalar_source_does_not_bridge_two_real_tables(self):
+        """A scalar source is neutral, not a connection between other tables."""
+        sql = """
+        SELECT *
+        FROM users AS u
+        CROSS JOIN (SELECT COUNT(*) AS n FROM audit) AS s
+        CROSS JOIN orders AS o
+        WHERE u.id > s.n AND o.id > s.n
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_scalar_source_on_clause_does_not_bridge_real_tables(self):
+        """An ON predicate through a scalar alias cannot connect two real sources."""
+        sql = """
+        SELECT *
+        FROM accounts AS a
+        CROSS JOIN orders AS o
+        JOIN (SELECT 1 AS x) AS s ON a.id = s.x
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_unqualified_scalar_output_does_not_bridge_real_tables(self):
+        """A known scalar output name must not trigger the two-table heuristic."""
+        sql = """
+        SELECT *
+        FROM accounts AS a
+        CROSS JOIN orders AS o
+        JOIN (SELECT 1 AS scalar_id) AS s ON a.id = scalar_id
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_two_unqualified_scalar_outputs_do_not_bridge_real_tables(self):
+        """Two scalar output names cannot be inferred as the active sources."""
+        sql = """
+        SELECT *
+        FROM (SELECT x FROM source_a) AS a
+        CROSS JOIN (SELECT y FROM source_b) AS b
+        JOIN (SELECT 1 AS scalar_x, 1 AS scalar_y) AS s
+          ON scalar_x = scalar_y
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_scalar_between_bounds_do_not_bridge_real_tables(self):
+        """Known scalar bounds cannot trigger the unqualified BETWEEN heuristic."""
+        sql = """
+        SELECT *
+        FROM (SELECT x FROM source_a) AS a
+        CROSS JOIN (SELECT y FROM source_b) AS b
+        JOIN (SELECT 0 AS low_bound, 10 AS high_bound) AS s
+          ON a.x BETWEEN low_bound AND high_bound
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_scalar_from_source_with_using_not_cartesian(self):
+        """USING must not reinsert a scalar source into the active graph."""
+        sql = """
+        SELECT *
+        FROM (SELECT 1 AS id) AS s
+        JOIN accounts AS a USING (id)
+        JOIN orders AS o ON a.id = o.account_id
+        """
+        result = detect_antipatterns(sql)
+        assert result.parseable is True
+        assert result.has_cartesian_product is False
+
+    def test_using_does_not_heal_disconnected_prefix(self):
+        """USING attaches only after its full left prefix is connected."""
+        sql = """
+        SELECT *
+        FROM a
+        CROSS JOIN b
+        JOIN c USING (id)
+        WHERE b.x = c.y
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_using_attaches_to_connected_prefix(self):
+        """USING safely extends a prefix already connected by another join."""
+        sql = """
+        SELECT *
+        FROM a
+        JOIN b ON a.x = b.x
+        JOIN c USING (id)
+        """
+        result = detect_antipatterns(sql)
+        assert result.parseable is True
+        assert result.has_cartesian_product is False
+
+    def test_grouped_aggregate_derived_source_still_cartesian(self):
+        """GROUP BY can return many rows, so the derived source is not scalar."""
+        sql = """
+        SELECT u.id
+        FROM users AS u
+        CROSS JOIN (
+            SELECT status, COUNT(*) AS value
+            FROM orders
+            GROUP BY status
+        ) AS s
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_filtered_derived_source_still_cartesian(self):
+        """An ordinary filter does not prove that a derived source is scalar."""
+        sql = """
+        SELECT u.id
+        FROM users AS u
+        CROSS JOIN (
+            SELECT total
+            FROM orders
+            WHERE status = 'open'
+        ) AS s
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_inner_join_on_false_not_cartesian(self):
+        """ON FALSE produces no joined pairs and cannot cause row multiplication."""
+        sql = "SELECT * FROM users AS u JOIN orders AS o ON FALSE"
+        result = detect_antipatterns(sql)
+        assert result.parseable is True
+        assert result.has_cartesian_product is False
+
+    @pytest.mark.parametrize("side", ["LEFT", "RIGHT", "FULL"])
+    def test_outer_join_on_false_not_cartesian(self, side):
+        """ON FALSE outer joins preserve rows additively, never multiplicatively."""
+        sql = f"SELECT * FROM users AS u {side} JOIN orders AS o ON FALSE"
+        result = detect_antipatterns(sql)
+        assert result.parseable is True
+        assert result.has_cartesian_product is False
+
+    def test_inner_join_on_false_then_cross_join_not_cartesian(self):
+        """An empty inner-join prefix remains empty after a CROSS JOIN."""
+        sql = "SELECT * FROM a JOIN b ON FALSE CROSS JOIN c"
+        result = detect_antipatterns(sql)
+        assert result.parseable is True
+        assert result.has_cartesian_product is False
+
+    def test_right_join_can_repopulate_empty_prefix_before_cross_join(self):
+        """A RIGHT JOIN can repopulate an empty prefix, exposing a later product."""
+        sql = """
+        SELECT *
+        FROM a
+        JOIN b ON FALSE
+        RIGHT JOIN c ON TRUE
+        CROSS JOIN d
+        """
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_full_join_on_false_then_cross_join_still_cartesian(self):
+        """A later CROSS JOIN multiplies both additive FULL JOIN branches."""
+        sql = "SELECT * FROM a FULL JOIN b ON FALSE CROSS JOIN c"
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_cross_join_before_full_join_on_false_still_cartesian(self):
+        """FULL ON FALSE must not heal a product already present in its prefix."""
+        sql = "SELECT * FROM a CROSS JOIN b FULL JOIN c ON FALSE"
+        result = detect_antipatterns(sql)
+        assert result.has_cartesian_product is True
+
+    def test_connected_prefix_before_full_join_on_false_not_cartesian(self):
+        """FULL ON FALSE additively extends an already connected prefix."""
+        sql = """
+        SELECT *
+        FROM a
+        JOIN b ON a.id = b.id
+        FULL JOIN c ON FALSE
+        """
+        result = detect_antipatterns(sql)
+        assert result.parseable is True
+        assert result.has_cartesian_product is False
+
+    def test_schema_qualified_same_table_names_remain_distinct(self):
+        """Schema qualification prevents unrelated base names from colliding."""
+        sql = """
+        SELECT *
+        FROM schema_one.events
+        JOIN schema_two.events
+          ON schema_one.events.id = schema_two.events.id
+        """
+        result = detect_antipatterns(sql, dialect="duckdb")
+        assert result.parseable is True
+        assert result.has_cartesian_product is False
+
+    def test_schema_qualified_same_table_names_cross_join_is_detected(self):
+        """Qualified identities must remain distinct without a join predicate."""
+        sql = """
+        SELECT *
+        FROM schema_one.events
+        CROSS JOIN schema_two.events
+        """
+        result = detect_antipatterns(sql, dialect="duckdb")
+        assert result.has_cartesian_product is True
+
+    def test_duplicate_alias_does_not_bypass_cartesian_detection(self):
+        """A parseable duplicate alias must not collapse to one apparent source."""
+        sql = """
+        SELECT SUM(1)
+        FROM traffic_courts AS tc
+        INNER JOIN court_cases AS tc ON tc.court_id = tc.court_id
         """
         result = detect_antipatterns(sql)
         assert result.has_cartesian_product is True

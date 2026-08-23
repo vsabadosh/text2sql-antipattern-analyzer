@@ -310,20 +310,50 @@ def _detect_cartesian_product(
     for select in ast.find_all(exp.Select):
         tables = _collect_tables_for_select(select)
         if len(tables) < 2:
-            # Cannot have a Cartesian product with fewer than 2 tables
+            # Cannot have a Cartesian product with fewer than 2 sources
             continue
 
-        all_tables: Set[str] = set(tables)
-        tables_in_conditions: Set[str] = set()
-        has_using_join = False
+        is_empty, irrelevant_sources, structural_attachments = (
+            _analyze_constant_false_joins(select)
+        )
+        if is_empty:
+            # A final empty relation cannot contain a Cartesian product.
+            continue
+
+        has_duplicate_aliases = len(tables) != len(set(tables))
+        (
+            scalar_sources,
+            scalar_output_names,
+            scalar_outputs_unknown,
+        ) = _collect_provably_scalar_source_names(select)
+        all_tables: Set[str] = set(tables) - scalar_sources - irrelevant_sources
+
+        if not has_duplicate_aliases and len(all_tables) < 2:
+            # Scalar or otherwise irrelevant sources cannot multiply the relation.
+            continue
+
+        condition_edges: List[Set[str]] = []
+
+        def _record_connection(tables_to_connect: Set[str]) -> None:
+            edge = tables_to_connect & all_tables
+            if len(edge) >= 2:
+                condition_edges.append(edge)
 
         joins: List[exp.Expression] = list(select.args.get("joins") or [])
         from_clause = select.args.get("from")
+        from_table_name = (
+            _extract_join_source_name(from_clause.this)
+            if isinstance(from_clause, exp.From) and from_clause.this is not None
+            else None
+        )
+        preceding_sources: Set[str] = (
+            {from_table_name} if from_table_name else set()
+        )
 
         # ------------------------------------------------------------------
         # 2a) JOIN ... ON / USING
         # ------------------------------------------------------------------
-        for join in joins:
+        for join_index, join in enumerate(joins):
             if not isinstance(join, exp.Join):
                 continue
 
@@ -336,8 +366,8 @@ def _detect_cartesian_product(
                     left = eq.left
                     right = eq.right
 
-                    left_table = _get_column_table(left)
-                    right_table = _get_column_table(right)
+                    left_table = _get_column_table(left, all_tables)
+                    right_table = _get_column_table(right, all_tables)
 
                     # Normal case: both sides are columns from different tables
                     if (
@@ -347,8 +377,7 @@ def _detect_cartesian_product(
                         and left_table in all_tables
                         and right_table in all_tables
                     ):
-                        tables_in_conditions.add(left_table)
-                        tables_in_conditions.add(right_table)
+                        _record_connection({left_table, right_table})
                         continue
 
                     # Heuristic: exactly two tables, equality between two columns.
@@ -369,10 +398,25 @@ def _detect_cartesian_product(
                             # Example: T2.actid = T2.actid → ignore as join
                             continue
 
-                        # If at least one side resolves to a table at this level,
-                        # assume this condition connects both tables.
-                        if (left_table in all_tables) or (right_table in all_tables):
-                            tables_in_conditions |= all_tables
+                        # If exactly one side is qualified at this level and the
+                        # other is unqualified, assume the latter belongs to the
+                        # other source. A qualified excluded/scalar alias is not
+                        # evidence connecting the two active sources.
+                        left_is_safe_unqualified = (
+                            not left_table
+                            and not scalar_outputs_unknown
+                            and (left.name or "").lower() not in scalar_output_names
+                        )
+                        right_is_safe_unqualified = (
+                            not right_table
+                            and not scalar_outputs_unknown
+                            and (right.name or "").lower() not in scalar_output_names
+                        )
+                        if (
+                            (left_table in all_tables and right_is_safe_unqualified)
+                            or (right_table in all_tables and left_is_safe_unqualified)
+                        ):
+                            _record_connection(all_tables)
                             continue
 
                         # Both columns unqualified with different names in a
@@ -382,12 +426,12 @@ def _detect_cartesian_product(
                         # joined table is known, giving high confidence that
                         # the ON clause is meant to connect them.
                         if (
-                            not left_table
-                            and not right_table
+                            left_is_safe_unqualified
+                            and right_is_safe_unqualified
                             and joined_table_name
                             and (left.name or "").lower() != (right.name or "").lower()
                         ):
-                            tables_in_conditions |= all_tables
+                            _record_connection(all_tables)
                             continue
 
                 # Heuristic for range/theta joins with unqualified bound columns.
@@ -401,105 +445,56 @@ def _detect_cartesian_product(
                         low = between.args.get("low")
                         high = between.args.get("high")
 
-                        target_table = _get_column_table(target)
+                        target_table = _get_column_table(target, all_tables)
                         low_is_unqualified_col = (
-                            isinstance(low, exp.Column) and not _get_column_table(low)
+                            isinstance(low, exp.Column)
+                            and not _get_column_table(low, all_tables)
+                            and not scalar_outputs_unknown
+                            and (low.name or "").lower() not in scalar_output_names
                         )
                         high_is_unqualified_col = (
-                            isinstance(high, exp.Column) and not _get_column_table(high)
+                            isinstance(high, exp.Column)
+                            and not _get_column_table(high, all_tables)
+                            and not scalar_outputs_unknown
+                            and (high.name or "").lower() not in scalar_output_names
                         )
 
                         if (
                             target_table in all_tables
                             and (low_is_unqualified_col or high_is_unqualified_col)
                         ):
-                            tables_in_conditions |= all_tables
+                            _record_connection(all_tables)
                             break
 
-                # General case for expression-based joins:
-                # if ON references the joined table alias and at least one other
-                # table from this SELECT level, treat them as connected.
-                #
-                # Example:
-                #   JOIN subq t4 ON CAST(t1.col AS REAL) = t4.metric
-                # Columns from ON are {t1, t4} -> valid non-Cartesian join.
-                #
-                # Counterexample (should remain Cartesian):
-                #   JOIN activity t3 ON t2.actid = t2.actid
-                # Columns from ON are only {t2}; joined table t3 is not referenced.
-                if joined_table_name:
-                    on_tables: Set[str] = {
-                        str(col.table).lower()
-                        for col in on_clause.find_all(exp.Column)
-                        if getattr(col, "table", None)
-                    }
-                    on_tables &= all_tables
-
-                    if joined_table_name in on_tables and len(on_tables) >= 2:
-                        tables_in_conditions.update(on_tables)
+                # Analyze each ON predicate independently. This recognizes
+                # expression-based joins without turning independent filters
+                # such as "a.x > 0 AND b.y > 0" into a false graph edge.
+                _collect_inter_table_refs_at_level(
+                    on_clause, all_tables, condition_edges
+                )
 
             # --- USING (col...) also represents a join condition between tables ---
             using_clause = join.args.get("using")
-            if using_clause is not None:
-                has_using_join = True
+            if using_clause is not None and joined_table_name:
+                structural_attachments.append(
+                    (join_index, set(preceding_sources), {joined_table_name})
+                )
 
-                # Add the joined table
-                if isinstance(join.this, exp.Table):
-                    joined_table = join.this.alias_or_name.lower()
-                    if joined_table in all_tables:
-                        tables_in_conditions.add(joined_table)
-                elif isinstance(join.this, exp.Subquery) and join.this.alias:
-                    joined_table = join.this.alias.lower()
-                    if joined_table in all_tables:
-                        tables_in_conditions.add(joined_table)
-
-                # Also add the FROM table (USING always joins to something before it)
-                if from_clause and from_clause.this:
-                    if isinstance(from_clause.this, exp.Table):
-                        tables_in_conditions.add(from_clause.this.alias_or_name.lower())
-                    elif isinstance(from_clause.this, exp.Subquery) and from_clause.this.alias:
-                        tables_in_conditions.add(from_clause.this.alias.lower())
+            if joined_table_name:
+                preceding_sources.add(joined_table_name)
 
         # ------------------------------------------------------------------
         # 2b) WHERE clause: old-style joins and inter-table predicates
         #
-        # WHERE predicates can "rescue" comma-style tables (FROM a, b
-        # WHERE a.x = b.y) but must NOT rescue tables from explicit JOINs
-        # whose ON was tautological or missing (e.g. JOIN t ON 1=1,
-        # JOIN t without ON).  Those are genuine cross-join code smells.
+        # For inner joins, an inter-table predicate in WHERE is relationally
+        # equivalent to the same predicate in ON. It therefore connects the
+        # sources regardless of whether the query used comma syntax, JOIN
+        # without ON, or JOIN ON TRUE.
         # ------------------------------------------------------------------
-        # Collect tables from *explicit* JOINs that section 2a did not
-        # connect.  Comma-joins (FROM a, b) are represented by sqlglot as
-        # Join nodes with no on/using/kind/side — those are old-style
-        # joins and legitimately rely on WHERE for their condition.
-        explicitly_unconnected_joins: Set[str] = set()
-        for join in joins:
-            if not isinstance(join, exp.Join):
-                continue
-            is_rescuable_by_where = (
-                not join.args.get("on")
-                and not join.args.get("using")
-                and not join.side
-                and (
-                    not join.args.get("kind")
-                    or join.args.get("kind") == "CROSS"
-                )
-            )
-            if is_rescuable_by_where:
-                continue
-            jtn = _extract_join_source_name(join.this)
-            if jtn and jtn in all_tables and jtn not in tables_in_conditions:
-                explicitly_unconnected_joins.add(jtn)
-
         where_clause = select.args.get("where")
         if where_clause is not None:
-            where_rescued: Set[str] = set()
             _collect_inter_table_refs_at_level(
-                where_clause, all_tables, where_rescued
-            )
-            # Only admit tables that were NOT from an unconnected explicit JOIN
-            tables_in_conditions.update(
-                where_rescued - explicitly_unconnected_joins
+                where_clause, all_tables, condition_edges
             )
 
         # ------------------------------------------------------------------
@@ -507,13 +502,8 @@ def _detect_cartesian_product(
         # ------------------------------------------------------------------
 
         # Case A: no inter-table join conditions at all
-        if not tables_in_conditions:
-            # Special case: exactly two tables with JOIN ... USING
-            # Treat that as a proper join, not a Cartesian product.
-            if len(all_tables) == 2 and has_using_join:
-                continue
-
-            # Otherwise: pure Cartesian product (FROM a, b or JOIN without conditions)
+        if not condition_edges and not structural_attachments:
+            # Pure Cartesian product (FROM a, b or JOIN without conditions).
             features.has_cartesian_product = True
             antipatterns.append(
                 AntipatternInstance(
@@ -528,13 +518,14 @@ def _detect_cartesian_product(
             )
             return
 
-        # Case B: some tables never appear in any inter-table condition
-        # Example:
-        #   FROM a, b JOIN c ON b.id = c.b_id
-        #   tables               = {a, b, c}
-        #   tables_in_conditions = {b, c}  → 'a' is floating
-        #   This means: a × (b ⋈ c)
-        if tables_in_conditions != all_tables:
+        # Case B: the condition graph has multiple disconnected components.
+        # Example: a-b and c-d are each joined internally, but their two
+        # components are still combined as (a ⋈ b) × (c ⋈ d).
+        if not _are_sources_connected(
+            all_tables,
+            condition_edges,
+            structural_attachments,
+        ):
             features.has_cartesian_product = True
             antipatterns.append(
                 AntipatternInstance(
@@ -1279,11 +1270,16 @@ def _collect_outer_tables(select: exp.Select) -> Set[str]:
 
 def _extract_join_source_name(source: exp.Expression) -> Optional[str]:
     """
-    Return lowercased alias/name for a JOIN source (table or subquery alias).
+    Return the lowercased correlation name for a table or derived source.
+
+    Explicit aliases take precedence. Unaliased tables retain their qualified
+    name so equally named tables from different schemas remain distinct.
     """
     if isinstance(source, exp.Table):
-        name = source.alias_or_name
-        return str(name).lower() if name else None
+        if source.alias:
+            return str(source.alias).lower()
+        parts = [part.name.lower() for part in source.parts if part.name]
+        return ".".join(parts) or None
     if isinstance(source, exp.Subquery) and source.alias:
         return str(source.alias).lower()
     return None
@@ -1343,51 +1339,128 @@ def _is_update_assignment_comparison(node: exp.Expression) -> bool:
     return isinstance(node.parent, exp.Update)
 
 
-def _get_column_table(node: exp.Expression) -> Optional[str]:
-    """Extract table name from a column reference if available."""
-    if isinstance(node, exp.Column):
-        if hasattr(node, 'table') and node.table:
-            return str(node.table).lower()
-    return None
+def _get_column_table(
+    node: exp.Expression,
+    all_tables: Optional[Set[str]] = None,
+) -> Optional[str]:
+    """Resolve a column qualifier to a source identity at this SELECT level."""
+    if not isinstance(node, exp.Column):
+        return None
+
+    parts = [part.name.lower() for part in node.parts if part.name]
+    if len(parts) < 2:
+        return None
+
+    qualifier = ".".join(parts[:-1])
+    if not all_tables or qualifier in all_tables:
+        return qualifier
+
+    # SQL permits shorter qualifiers (e.g. t.id for schema.t). Resolve one
+    # only when it identifies exactly one source at this SELECT level.
+    matches = {
+        table
+        for table in all_tables
+        if table == qualifier or table.endswith(f".{qualifier}")
+    }
+    if len(matches) == 1:
+        return next(iter(matches))
+    return qualifier
 
 
 def _collect_inter_table_refs_at_level(
     node: exp.Expression,
     all_tables: Set[str],
-    tables_in_conditions: Set[str],
+    condition_edges: List[Set[str]],
 ) -> None:
     """
     Walk a WHERE (or similar) clause at the current level (skipping subqueries)
-    and add to *tables_in_conditions* every table that participates in an
-    inter-table predicate.
+    and record the source groups connected by each inter-table predicate.
 
     Recognized predicate forms:
-      - Binary comparisons: a.col = b.col, a.col < b.col, etc.
+      - Binary and range predicates: equality, inequalities, BETWEEN, LIKE, etc.
+      - IN lists when every alternative depends on the same external source(s).
       - Function calls whose arguments reference columns from >=2 tables
         (e.g. ST_DWithin(a.loc, b.loc, radius), ST_Intersects(a.geom, b.geom)).
-      - Comparison of function results: EXTRACT(YEAR FROM a.d) = EXTRACT(YEAR FROM b.d).
     """
     if isinstance(node, (exp.Select, exp.Subquery)):
         return
 
-    _COMPARISON_TYPES = (exp.EQ, exp.NEQ, exp.LT, exp.GT, exp.LTE, exp.GTE)
+    def _record(tables: Set[str]) -> None:
+        edge = tables & all_tables
+        if len(edge) >= 2:
+            condition_edges.append(edge)
 
-    # Binary comparison: collect tables from both sides combined
-    if isinstance(node, _COMPARISON_TYPES):
-        left_tables = _tables_in_expression(node.left, all_tables)
-        right_tables = _tables_in_expression(node.right, all_tables)
-        combined = left_tables | right_tables
-        if len(combined) >= 2:
-            tables_in_conditions.update(combined)
+    if (
+        isinstance(node, (exp.EQ, exp.NullSafeEQ))
+        and isinstance(node.left, exp.Tuple)
+        and isinstance(node.right, exp.Tuple)
+        and len(node.left.expressions) == len(node.right.expressions)
+    ):
+        for left_expression, right_expression in zip(
+            node.left.expressions,
+            node.right.expressions,
+        ):
+            _record(
+                _tables_in_expression(left_expression, all_tables)
+                | _tables_in_expression(right_expression, all_tables)
+            )
+        return
 
-    # Function calls (e.g. spatial predicates used as boolean filters)
-    if isinstance(node, exp.Func) and not isinstance(node, _COMPARISON_TYPES + (exp.And, exp.Or, exp.Not)):
-        func_tables = _tables_in_expression(node, all_tables)
-        if len(func_tables) >= 2:
-            tables_in_conditions.update(func_tables)
+    if isinstance(node, exp.In):
+        alternatives = list(node.expressions or [])
+
+        def _record_required_external_tables(
+            left_expression: exp.Expression,
+            right_expressions: List[exp.Expression],
+        ) -> None:
+            left_tables = _tables_in_expression(left_expression, all_tables)
+            if not left_tables or not right_expressions:
+                return
+            required_external_tables: Optional[Set[str]] = None
+            for alternative in right_expressions:
+                external_tables = (
+                    _tables_in_expression(alternative, all_tables) - left_tables
+                )
+                if required_external_tables is None:
+                    required_external_tables = external_tables
+                else:
+                    required_external_tables &= external_tables
+            if required_external_tables:
+                _record(left_tables | required_external_tables)
+
+        if isinstance(node.this, exp.Tuple) and alternatives:
+            left_expressions = list(node.this.expressions)
+            tuple_alternatives = [
+                alternative
+                for alternative in alternatives
+                if isinstance(alternative, exp.Tuple)
+                and len(alternative.expressions) == len(left_expressions)
+            ]
+            if len(tuple_alternatives) == len(alternatives):
+                for position, left_expression in enumerate(left_expressions):
+                    _record_required_external_tables(
+                        left_expression,
+                        [
+                            alternative.expressions[position]
+                            for alternative in tuple_alternatives
+                        ],
+                    )
+                return
+
+        _record_required_external_tables(node.this, alternatives)
+        return
+
+    if isinstance(node, exp.Predicate):
+        _record(_tables_in_expression(node, all_tables))
+        return
+
+    # Function calls used directly as boolean filters, such as spatial predicates.
+    if isinstance(node, exp.Func) and not isinstance(node, (exp.And, exp.Or, exp.Not)):
+        _record(_tables_in_expression(node, all_tables))
+        return
 
     for child in node.iter_expressions():
-        _collect_inter_table_refs_at_level(child, all_tables, tables_in_conditions)
+        _collect_inter_table_refs_at_level(child, all_tables, condition_edges)
 
 
 def _tables_in_expression(expr: exp.Expression, all_tables: Set[str]) -> Set[str]:
@@ -1397,13 +1470,61 @@ def _tables_in_expression(expr: exp.Expression, all_tables: Set[str]) -> Set[str
     if isinstance(expr, (exp.Select, exp.Subquery)):
         return result
     if isinstance(expr, exp.Column):
-        t = _get_column_table(expr)
+        t = _get_column_table(expr, all_tables)
         if t and t in all_tables:
             result.add(t)
         return result
     for child in expr.iter_expressions():
         result.update(_tables_in_expression(child, all_tables))
     return result
+
+
+def _are_sources_connected(
+    all_tables: Set[str],
+    condition_edges: List[Set[str]],
+    structural_attachments: List[Tuple[int, Set[str], Set[str]]],
+) -> bool:
+    """Return True when conditions and ordered structural joins connect sources.
+
+    A structural attachment (currently USING or FULL JOIN ... ON FALSE) may
+    attach a new source only after its entire left prefix is already connected;
+    it must never heal a Cartesian product that exists inside that prefix.
+    """
+    if len(all_tables) < 2:
+        return True
+
+    parent: Dict[str, str] = {table: table for table in all_tables}
+
+    def _find(table: str) -> str:
+        while parent[table] != table:
+            parent[table] = parent[parent[table]]
+            table = parent[table]
+        return table
+
+    def _union(tables: Set[str]) -> None:
+        members = list(tables & all_tables)
+        if len(members) < 2:
+            return
+        root = _find(members[0])
+        for member in members[1:]:
+            other_root = _find(member)
+            if other_root != root:
+                parent[other_root] = root
+
+    for edge in condition_edges:
+        _union(edge)
+
+    for _, raw_left, raw_right in sorted(
+        structural_attachments,
+        key=lambda attachment: attachment[0],
+    ):
+        left = raw_left & all_tables
+        right = raw_right & all_tables
+        if left and len({_find(table) for table in left}) > 1:
+            return False
+        _union(left | right)
+
+    return len({_find(table) for table in all_tables}) == 1
 
 
 def _closest_parent_of_type(node: exp.Expression, cls: Type[exp.Expression]) -> Optional[exp.Expression]:
@@ -1896,10 +2017,9 @@ def _collect_tables_for_select(select: exp.Select) -> List[str]:
     tables: List[str] = []
 
     def _add_table(expr: exp.Expression) -> None:
-        if isinstance(expr, exp.Table):
-            tables.append(expr.alias_or_name.lower())
-        elif isinstance(expr, exp.Subquery) and expr.alias:
-            tables.append(expr.alias.lower())
+        source_name = _extract_join_source_name(expr)
+        if source_name:
+            tables.append(source_name)
 
     from_clause = select.args.get("from")
     if isinstance(from_clause, exp.From) and from_clause.this is not None:
@@ -1911,3 +2031,232 @@ def _collect_tables_for_select(select: exp.Select) -> List[str]:
             _add_table(join.this)
 
     return tables
+
+
+def _collect_provably_scalar_source_names(
+    select: exp.Select,
+) -> Tuple[Set[str], Set[str], bool]:
+    """Return aliases of derived sources guaranteed to produce at most one row.
+
+    Such a source cannot multiply rows, so it should not make an otherwise
+    connected SELECT look Cartesian. The proof is deliberately syntactic:
+    LIMIT/FETCH <= 1, SELECT without FROM, or an aggregate without GROUP BY.
+    """
+    scalar_sources: Set[str] = set()
+    scalar_output_names: Set[str] = set()
+    scalar_outputs_unknown = False
+    cte_queries: Dict[str, exp.Expression] = {}
+
+    scope: Optional[exp.Expression] = select
+    while scope is not None:
+        if isinstance(scope, exp.Select):
+            with_clause = scope.args.get("with")
+            if isinstance(with_clause, exp.With):
+                for cte in with_clause.expressions:
+                    if isinstance(cte, exp.CTE) and cte.alias_or_name:
+                        cte_queries.setdefault(
+                            str(cte.alias_or_name).lower(),
+                            cte.this,
+                        )
+        scope = scope.parent
+
+    def _inspect_source(source: exp.Expression) -> None:
+        nonlocal scalar_outputs_unknown
+
+        source_name = _extract_join_source_name(source)
+        if not source_name:
+            return
+
+        source_query: Optional[exp.Expression] = None
+        if isinstance(source, exp.Subquery):
+            source_query = source.this
+        elif isinstance(source, exp.Table) and len(source.parts) == 1:
+            source_query = cte_queries.get(source.name.lower())
+
+        if source_query is not None and _is_provably_scalar_query(source_query):
+            scalar_sources.add(source_name)
+            if isinstance(source_query, exp.Select):
+                output_names = {
+                    str(name).lower()
+                    for name in source_query.named_selects
+                    if name
+                }
+                scalar_output_names.update(output_names)
+                if not output_names:
+                    scalar_outputs_unknown = True
+                for projection in source_query.expressions or []:
+                    resolved = (
+                        projection.this
+                        if isinstance(projection, exp.Alias)
+                        else projection
+                    )
+                    if isinstance(resolved, exp.Star) or (
+                        isinstance(resolved, exp.Column)
+                        and isinstance(resolved.this, exp.Star)
+                    ):
+                        scalar_outputs_unknown = True
+            else:
+                scalar_outputs_unknown = True
+
+    from_clause = select.args.get("from")
+    if isinstance(from_clause, exp.From) and from_clause.this is not None:
+        _inspect_source(from_clause.this)
+
+    for join in select.args.get("joins") or []:
+        if isinstance(join, exp.Join) and join.this is not None:
+            _inspect_source(join.this)
+
+    return scalar_sources, scalar_output_names, scalar_outputs_unknown
+
+
+def _analyze_constant_false_joins(
+    select: exp.Select,
+) -> Tuple[bool, Set[str], List[Tuple[int, Set[str], Set[str]]]]:
+    """Model the cardinality effect of JOIN ... ON FALSE from left to right.
+
+    Returns:
+        (final_relation_is_empty, irrelevant_sources, structural_attachments)
+
+    LEFT/RIGHT joins discard one side as a cardinality factor. FULL joins keep
+    both sides additively, so the right side attaches only after the left prefix
+    is connected. An INNER join makes the prefix empty; a later RIGHT/FULL join
+    can repopulate it.
+    """
+    from_clause = select.args.get("from")
+    from_source = (
+        _extract_join_source_name(from_clause.this)
+        if isinstance(from_clause, exp.From) and from_clause.this is not None
+        else None
+    )
+    active_sources: Set[str] = {from_source} if from_source else set()
+    irrelevant_sources: Set[str] = set()
+    structural_attachments: List[Tuple[int, Set[str], Set[str]]] = []
+    definitely_empty = False
+
+    for join_index, join in enumerate(select.args.get("joins") or []):
+        if not isinstance(join, exp.Join):
+            continue
+
+        joined_source = _extract_join_source_name(join.this)
+        side = (join.side or "").upper()
+
+        if definitely_empty:
+            if side in {"RIGHT", "FULL"}:
+                irrelevant_sources.update(active_sources)
+                active_sources = {joined_source} if joined_source else set()
+                definitely_empty = False
+            elif joined_source:
+                active_sources.add(joined_source)
+            continue
+
+        on_clause = join.args.get("on")
+        is_constant_false = (
+            isinstance(on_clause, exp.Boolean) and on_clause.this is False
+        )
+        if not is_constant_false:
+            if joined_source:
+                active_sources.add(joined_source)
+            continue
+
+        if side == "LEFT":
+            if joined_source:
+                irrelevant_sources.add(joined_source)
+        elif side == "RIGHT":
+            irrelevant_sources.update(active_sources)
+            active_sources = {joined_source} if joined_source else set()
+        elif side == "FULL":
+            if joined_source:
+                structural_attachments.append(
+                    (join_index, set(active_sources), {joined_source})
+                )
+                active_sources.add(joined_source)
+        else:
+            if joined_source:
+                active_sources.add(joined_source)
+            definitely_empty = True
+
+    return definitely_empty, irrelevant_sources, structural_attachments
+
+
+def _has_set_returning_projection(select: exp.Select) -> bool:
+    """Return True when a projection may emit multiple rows per input row."""
+    set_returning_types = tuple(
+        expression_type
+        for expression_type in (
+            getattr(exp, "UDTF", None),
+            getattr(exp, "ExplodingGenerateSeries", None),
+            getattr(exp, "Inline", None),
+        )
+        if isinstance(expression_type, type)
+    )
+
+    def _inside_non_window_aggregate(node: exp.Expression) -> bool:
+        parent = node.parent
+        while parent is not None and parent is not select:
+            if _is_aggregate_like(parent) and not _is_window_aggregate(parent):
+                return True
+            parent = parent.parent
+        return False
+
+    for projection in select.expressions or []:
+        for node in projection.walk():
+            if _inside_non_window_aggregate(node):
+                continue
+            if isinstance(node, set_returning_types):
+                return True
+            if isinstance(node, exp.Anonymous) and not _is_aggregate_like(node):
+                # Unknown user-defined functions may be set-returning.
+                return True
+    return False
+
+
+def _limit_proves_at_most_one_row(limit: exp.Expression) -> bool:
+    """Return True only for an absolute LIMIT/FETCH count of zero or one."""
+    if isinstance(limit, exp.Limit):
+        limit_count = limit.expression
+        if limit.args.get("expressions"):
+            # ClickHouse LIMIT ... BY applies the count per group.
+            return False
+    elif isinstance(limit, exp.Fetch):
+        limit_count = limit.args.get("count")
+    else:
+        return False
+
+    if (
+        not isinstance(limit_count, exp.Literal)
+        or limit_count.is_string
+        or not limit_count.is_int
+    ):
+        return False
+
+    count = int(limit_count.this)
+    if count == 0:
+        return True
+    if count != 1:
+        return False
+
+    options = limit.args.get("limit_options")
+    option_args = options.args if isinstance(options, exp.Expression) else {}
+    return not (option_args.get("percent") or option_args.get("with_ties"))
+
+
+def _is_provably_scalar_query(query: exp.Expression) -> bool:
+    """Return True only when the AST proves that *query* yields <= 1 row."""
+    limit = query.args.get("limit")
+    if isinstance(limit, (exp.Limit, exp.Fetch)) and _limit_proves_at_most_one_row(limit):
+        return True
+
+    if not isinstance(query, exp.Select):
+        return False
+
+    if _has_set_returning_projection(query):
+        return False
+
+    if query.args.get("from") is None:
+        return True
+
+    if query.args.get("group") is not None:
+        return False
+
+    has_aggregate, _, _ = _collect_non_aggregated_columns_for_select(query, [])
+    return has_aggregate
