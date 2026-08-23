@@ -1,0 +1,1 @@
+/Users/vsabadosh/projects/PERSONAL/LLM/text2sql-dataset-analyzer

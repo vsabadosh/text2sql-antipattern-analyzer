@@ -1,0 +1,1465 @@
+% !TEX TS-program = tectonic
+% !TEX encoding = UTF-8 Unicode
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setdefaultlanguage{ukrainian}
+\setotherlanguage{english}
+
+\setmainfont{PT Serif}[Ligatures=TeX]
+\setsansfont{PT Sans}[Ligatures=TeX]
+\setmonofont{Menlo}[Scale=0.84]
+\newfontfamily\cyrillicfont{PT Serif}[Ligatures=TeX]
+\newfontfamily\cyrillicfontsf{PT Sans}[Ligatures=TeX]
+\newfontfamily\cyrillicfonttt{Menlo}[Scale=0.84]
+
+\usepackage[a4paper,top=2.25cm,bottom=2.30cm,left=2.35cm,right=2.35cm]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage[hidelinks]{hyperref}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{multicol}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit}
+
+\definecolor{accent}{HTML}{1F4E79}
+\definecolor{accenttwo}{HTML}{2F6F5E}
+\definecolor{soft}{HTML}{F2F5F8}
+\definecolor{softgreen}{HTML}{F1F7F4}
+\definecolor{softamber}{HTML}{FFF8E8}
+\definecolor{softred}{HTML}{FFF3F1}
+\definecolor{rule}{HTML}{C8D2DC}
+\definecolor{warning}{HTML}{9A6700}
+\definecolor{danger}{HTML}{A33A2B}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=accent,
+  urlcolor=accent,
+  citecolor=accent,
+  pdftitle={When Does Schema Context Help? Повний план schema-aware статті},
+  pdfauthor={Volodymyr Sabadosh and Vladyslav Kotsovsky}
+}
+\urlstyle{same}
+
+\titleformat{\section}
+  {\sffamily\Large\bfseries\color{accent}}{\thesection.}{0.6em}{}
+\titleformat{\subsection}
+  {\sffamily\large\bfseries}{\thesubsection.}{0.6em}{}
+\titleformat{\subsubsection}
+  {\sffamily\normalsize\bfseries}{\thesubsubsection.}{0.6em}{}
+\titlespacing*{\section}{0pt}{18pt}{8pt}
+\titlespacing*{\subsection}{0pt}{14pt}{5pt}
+\titlespacing*{\subsubsection}{0pt}{11pt}{4pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[L]{\sffamily\footnotesize\color{accent}SchemaAwareArticlePlan}
+\fancyhead[R]{\sffamily\footnotesize\color{accent}Catalog-grounded SQL auditing}
+\fancyfoot[C]{\sffamily\footnotesize\thepage}
+
+\newtcolorbox{keybox}[1][]{
+  enhanced, breakable, arc=2pt, boxrule=0.8pt,
+  colback=soft, colframe=accent!55,
+  left=8pt, right=8pt, top=6pt, bottom=6pt,
+  #1}
+
+\newtcolorbox{thesisbox}[1][]{
+  enhanced, breakable, arc=2pt, boxrule=0pt,
+  colback=soft, frame hidden,
+  borderline west={3pt}{0pt}{accent},
+  left=10pt, right=8pt, top=6pt, bottom=6pt,
+  #1}
+
+\newtcolorbox{mustbox}[1][]{
+  enhanced, breakable, arc=2pt, boxrule=0.8pt,
+  colback=softgreen, colframe=accenttwo!65,
+  title={\sffamily\bfseries Обов'язково для публікабельної версії},
+  coltitle=black,
+  left=8pt, right=8pt, top=5pt, bottom=6pt,
+  #1}
+
+\newtcolorbox{warningbox}[1][]{
+  enhanced, breakable, arc=2pt, boxrule=0.8pt,
+  colback=softamber, colframe=warning!65,
+  title={\sffamily\bfseries Методологічне застереження},
+  coltitle=black,
+  left=8pt, right=8pt, top=5pt, bottom=6pt,
+  #1}
+
+\newtcolorbox{riskbox}[1][]{
+  enhanced, breakable, arc=2pt, boxrule=0.8pt,
+  colback=softred, colframe=danger!55,
+  title={\sffamily\bfseries Ризик для claims},
+  coltitle=black,
+  left=8pt, right=8pt, top=5pt, bottom=6pt,
+  #1}
+
+\newcommand{\core}{\textcolor{accenttwo}{\textbf{CORE}}}
+\newcommand{\secondary}{\textcolor{warning}{\textbf{SECONDARY}}}
+\newcommand{\future}{\textcolor{danger}{\textbf{FUTURE}}}
+\newcommand{\unknown}{\texttt{unknown}}
+\newcommand{\presentstate}{\texttt{present}}
+\newcommand{\absentstate}{\texttt{absent}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\setlist[itemize]{leftmargin=1.4em,itemsep=2pt,topsep=4pt}
+\setlist[enumerate]{leftmargin=1.6em,itemsep=3pt,topsep=4pt}
+\renewcommand{\arraystretch}{1.22}
+\setlength{\emergencystretch}{3em}
+
+\lstdefinestyle{sqlstyle}{
+  language=SQL,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{accent}\bfseries,
+  commentstyle=\color{accenttwo},
+  stringstyle=\color{warning},
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{rule},
+  backgroundcolor=\color{soft},
+  columns=fullflexible,
+  xleftmargin=3pt,
+  xrightmargin=3pt,
+  aboveskip=5pt,
+  belowskip=6pt
+}
+
+\lstdefinestyle{pythonstyle}{
+  language=Python,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{accent}\bfseries,
+  commentstyle=\color{accenttwo},
+  stringstyle=\color{warning},
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{rule},
+  backgroundcolor=\color{soft},
+  columns=fullflexible,
+  xleftmargin=3pt,
+  xrightmargin=3pt,
+  aboveskip=5pt,
+  belowskip=6pt
+}
+
+\begin{document}
+
+\begin{center}
+{\sffamily\LARGE\bfseries\color{accent} Повний план окремої schema-aware статті}\\[5pt]
+{\sffamily\large When Does Schema Context Help?\\
+A Controlled Study of Catalog-Grounded SQL Auditing\\
+for Text-to-SQL Benchmarks}\\[11pt]
+{\footnotesize\sffamily
+Робочий документ • Volodymyr Sabadosh, Vladyslav Kotsovsky • Uzhhorod National University\\
+Пряме продовження AST-only роботи UJIT; окрема лінія від calibration/reconciliation article\\
+Версія 1.0 • 17 серпня 2026}
+\end{center}
+
+\vspace{7pt}
+\noindent\textcolor{rule}{\rule{\textwidth}{0.8pt}}
+\vspace{9pt}
+
+\begin{thesisbox}
+\textbf{Головна теза.} AST показує структурну форму SQL, але не може самостійно визначити,
+чи існує колонка, чи є вона nullable, чи задає GROUP BY функціональну залежність, чи
+JOIN множить рядки та чи ORDER BY встановлює повний порядок. Нова робота має не просто
+додати metadata до детектора, а \emph{контрольовано виміряти}, коли catalog grounding
+пригнічує false positives, знаходить нові ризики або змушує систему чесно утриматися
+від висновку.
+\end{thesisbox}
+
+\begin{keybox}
+\textbf{Вердикт щодо публікабельності.} Сильна стаття можлива як дослідження
+\emph{incremental value of schema context}: той самий SQL і той самий AST-rule family
+порівнюються в режимах AST-only, declared schema, native catalog і consistency-checked
+catalog. Варіант «ми додали PK/FK до лінтера» недостатній, оскільки SQLCheck уже
+використовував контекст, а новий інструмент \texttt{sqlsure} уже перевіряє join cardinality
+на Spider і BIRD.
+\end{keybox}
+
+\begin{mustbox}
+\textbf{Публічні посилання, які мають бути в документі та майбутній статті:}
+\begin{itemize}
+\item Наша опублікована UJIT-робота:
+  \href{https://doi.org/10.23939/ujit2026.01.135}
+  {\textit{Automated Detection and Comparative Analysis of SQL Antipatterns in Text-to-SQL Datasets}}
+  (\href{https://science.lpnu.ua/sites/default/files/journal-paper/2026/apr/42369/15sabadoshkocovskiy135-143.pdf}{прямий PDF}).
+\item Новий споріднений інструмент, який уточнив дизайн цієї наступної роботи:
+  \href{https://github.com/sqlsure/sqlsure}{\texttt{sqlsure}};
+  аналізований frozen snapshot:
+  \href{https://github.com/sqlsure/sqlsure/tree/d1b98e741f848ce7d756ee1d672e206d6ec39daa}{commit \texttt{d1b98e7}}.
+\item Дослідницька система SQLCheck:
+  \href{https://doi.org/10.1145/3318464.3389754}
+  {\textit{SQLCheck: Automated Detection and Diagnosis of SQL Anti-Patterns}}.
+\end{itemize}
+\end{mustbox}
+
+\tableofcontents
+\clearpage
+
+%==================================================================
+\section{Executive summary і межі роботи}
+%==================================================================
+
+\subsection{Що саме будуємо}
+
+До наявного dialect-aware AST analyzer додається спільний \texttt{SchemaContext},
+який отримується двома шляхами:
+
+\begin{enumerate}
+\item із native database через catalog reflection;
+\item із DDL/\texttt{sql\_context}: наявний materializer створює порожню БД, після чого
+      використовується той самий reflection path.
+\end{enumerate}
+
+Rule engine залишається чистим: він не відкриває DB connection і не виконує SQL.
+Він отримує AST, immutable context та повертає evidence-backed рішення. Запит не
+запускається вдруге; execution analyzer продовжує виконувати його один раз у своєму
+окремому pipeline step.
+
+\subsection{Що є новим результатом}
+
+\begin{itemize}
+\item Контрольований C0--C3 ablation, а не повторний corpus census.
+\item Schema facts із provenance і reliability state.
+\item Scope/alias/CTE/derived-table lineage, потрібний для коректного зв'язування AST
+      із колонками.
+\item Тризначна семантика \presentstate/\absentstate/\unknown замість silent-safe.
+\item Незалежний risk vector: correctness, performance, portability, maintainability.
+\item Нова blind annotation set для disagreement cases.
+\item Систематичне порівняння з \texttt{sqlsure} лише на спільних rule families.
+\end{itemize}
+
+\subsection{Що свідомо не входить}
+
+\begin{itemize}
+\item Повна NL--SQL semantic correctness evaluation: це належить окремій статті
+      про calibration та reconciliation.
+\item Автоматичне переписування SQL. Дозволена лише текстова remediation hint,
+      підкріплена evidence.
+\item Універсальний optimizer oracle для всіх діалектів.
+\item Partition-aware optimization: Spider/BIRD SQLite не надають відповідного
+      основного експериментального середовища.
+\item Твердження, що відсутній FK доводить неправильність JOIN.
+\end{itemize}
+
+%==================================================================
+\section{Чітка дельта до наших попередніх робіт}
+%==================================================================
+
+\subsection{UJIT 2026 як C0 baseline}
+
+UJIT-стаття реалізувала 14 AST-based antipattern types, dialect-specific severity
+profiles та corpus-level аналіз 122\,802 SQL-запитів у Spider, BIRD і Gretel.
+Її ключове обмеження сформульовано прямо: exclusive reliance on AST-level static
+analysis без column types, nullability, indexes, partitioning та execution-plan
+evidence. У future work названо schema-aware detection, severity calibration і
+multi-dimensional risk model.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{>{\bfseries}p{3.2cm}YY}
+\toprule
+Вимір & UJIT & Нова schema-aware робота \\
+\midrule
+Основний об'єкт &
+AST signatures і corpus profiles &
+Зміна рішення одного rule family після catalog grounding \\
+Контекст &
+SQL AST + dialect profile &
+AST + resolved lineage + schema facts + provenance \\
+Вердикт &
+Boolean flag + single severity &
+\presentstate/\absentstate/\unknown + risk vector \\
+Оцінювання &
+Prevalence і порівняння із C++ SqlCheck &
+Matched ablation, blind disagreement review, \texttt{sqlsure} baseline \\
+Новизна &
+Corpus-scale AST antipattern audit &
+Measured incremental value and limits of schema context \\
+\bottomrule
+\end{tabularx}
+\caption{Дельта до \href{https://doi.org/10.23939/ujit2026.01.135}{UJIT 2026}.}
+\end{table}
+
+\subsection{e-Informatica як infrastructure baseline}
+
+e-Informatica manuscript уже має:
+
+\begin{itemize}
+\item schema validation analyzer;
+\item \texttt{DbManager} і adapter protocol;
+\item materialization DB із DDL, якщо native DB відсутня;
+\item column type normalization, PK/FK reflection, referential-integrity checks;
+\item syntax, execution, AST-antipattern та LLM-semantic analyzers.
+\end{itemize}
+
+Але schema analyzer та query antipattern analyzer працюють паралельно. Нова робота
+з'єднує їх: schema facts стають входом для query-level rules. Старі schema totals,
+execution totals, 17 Cartesian cases і 263 semantic labels не подаються як нові
+результати.
+
+\subsection{План calibration та reconciliation залишається окремим}
+
+Calibration article оцінює semantic defect prevalence та recall LLM committee, а також
+item-level reconciliation із SQLDriller. Поточна стаття оцінює structural
+schema-conditioned propositions. Вона не використовує старі 263 labels як ground
+truth і не намагається дати новий загальний «відсоток неправильних gold SQL».
+
+\begin{warningbox}
+У майбутній статті потрібен окремий підрозділ \emph{Relation to our prior work}.
+Без нього рецензент може сприйняти C0 і повторне використання корпусів як salami
+slicing. Захистом є нова одиниця аналізу: \emph{paired rule decision under changing
+context}, а не повторна таблиця prevalence.
+\end{warningbox}
+
+%==================================================================
+\section{SQLCheck і sqlsure: що вже зроблено іншими}
+%==================================================================
+
+\subsection{SQLCheck}
+
+SQLCheck SIGMOD 2020 сформулював pipeline context formation, anti-pattern detection,
+ranking і repair для database applications. Тому не можна заявляти «first
+schema-aware SQL antipattern detector». Наша дельта: gold-query benchmark auditing,
+ідентичний AST-only/schema-aware ablation, provenance, abstention і незалежна
+емпірична оцінка.
+
+Публічно відтворюваний C++ \href{https://github.com/jarulraj/sqlcheck}{SqlCheck}
+є іншим artifact і вже використовувався в UJIT як baseline. Його можна залишити
+secondary baseline лише для overlapping syntax rules; він не є центральним
+schema-aware конкурентом.
+
+\subsection{Що реально реалізує sqlsure}
+
+Станом на 17 серпня 2026 року \texttt{sqlsure} є open-source artifact v0.1.1, а не
+рецензованою статтею. Його core:
+
+\begin{itemize}
+\item Python + SQLGlot;
+\item semantic model із table grain, measures, sensitive columns і declared joins;
+\item SQLite \texttt{PRAGMA} та PostgreSQL/MySQL \texttt{information\_schema}
+      introspection для PK/FK;
+\item дев'ять rules: FANOUT, CHASM, ADDITIVITY, SEMI\_ADDITIVE, WEIGHTED\_AVG,
+      JOIN\_KEY, UNDECLARED\_JOIN, CROSS\_JOIN, SENSITIVE\_COLUMN.
+\end{itemize}
+
+Catalog автоматично дає grain і join cardinality. Additivity, semi-additive dimension
+і sensitive policy потребують semantic metadata або ручної декларації. Інструмент
+не читає rows, не перевіряє RI, не є data-aware й не знає NL intent.
+
+\subsection{Важливі обмеження sqlsure для fair comparison}
+
+Аналіз frozen snapshot \texttt{d1b98e7} показує:
+
+\begin{itemize}
+\item parser scope-aware, але не повністю lineage-aware;
+\item CTE output lineage не переноситься в outer scopes;
+\item derived-table joins можуть бути пропущені;
+\item partial composite-key match може помилково пройти як valid join;
+\item \texttt{ON TRUE} та \texttt{ON 1=1} мають predicate і не позначаються CROSS\_JOIN;
+\item порожній список violations іноді означає «не вдалося атрибутувати», а не
+      доведене safe;
+\item Spider і BIRD audit scripts викликають extraction layer та окремо класифікують
+      join pairs із назв колонок; це не тотожне запуску всіх дев'яти \texttt{check()} rules;
+\item «zero false alarms» базується на retrospective manual review candidates і
+      не є blind evaluation всього rule set.
+\end{itemize}
+
+\begin{keybox}
+\textbf{Науково коректна позиція.} \texttt{sqlsure} є корисним, пізнішим і вузьким
+semantic-model checker. Він сильніший за UJIT у cardinality/additivity domain, але
+не перекриває UJIT taxonomy або e-Informatica pipeline. Нова стаття повинна
+цитувати artifact, pin exact commit і використовувати його як baseline, а не
+знецінювати.
+\end{keybox}
+
+\subsection{Хронологія і priority}
+
+\begin{itemize}
+\item UJIT article received: 31 березня 2026.
+\item UJIT article accepted: 22 квітня 2026.
+\item \texttt{sqlsure} repository created: 2 липня 2026.
+\end{itemize}
+
+Отже, UJIT має чіткий хронологічний priority для опублікованого corpus-scale
+SQLGlot AST audit. \texttt{sqlsure} впливає на позиціонування наступної
+schema-aware статті, але не ретроспективно на новизну UJIT.
+
+%==================================================================
+\section{Research gap, RQs і гіпотези}
+%==================================================================
+
+\subsection{Точний gap}
+
+\begin{thesisbox}
+У знайденій літературі та artifacts немає peer-reviewed контрольованого дослідження,
+яке на одному й тому самому rule engine із незалежними labels вимірює incremental
+value of declared, native та consistency-checked schema facts для аудиту reference
+SQL, включно з explicit abstention за неповного metadata.
+\end{thesisbox}
+
+\subsection{Research questions}
+
+\begin{description}[leftmargin=1.5cm,labelwidth=1.0cm,style=nextline]
+\item[RQ1] Наскільки повними, узгодженими й надійними є names, types, nullability,
+PK/FK, uniqueness та indexes у Spider, BIRD і Gretel?
+\item[RQ2] Які AST-only findings context підтверджує, пригнічує, додає або переводить
+у \unknown?
+\item[RQ3] Як context змінює precision, false-positive rate, review yield і
+risk-vector assignments?
+\item[RQ4] Які rule families найбільше виграють від nullability, key, cardinality,
+type, index і lineage facts?
+\item[RQ5] Які підтверджені cases унікальні для нашого analyzer, \texttt{sqlsure},
+DBMS resolution та execution check?
+\item[RQ6] Як acquisition path --- native database проти DDL-materialized schema ---
+впливає на coverage, abstention і throughput?
+\end{description}
+
+\subsection{Pre-specified hypotheses}
+
+\begin{itemize}
+\item \textbf{H1:} context-dependent rules матимуть вищу precision у C1--C3, ніж у C0.
+\item \textbf{H2:} syntax-only negative-control rules не зміняться між conditions.
+\item \textbf{H3:} найбільше false-positive suppression дасть nullable NOT IN.
+\item \textbf{H4:} найбільше нових correctness-risk findings дадуть join-key mismatch,
+      fan-out/chasm і potential multi-row scalar subquery.
+\item \textbf{H5:} Gretel матиме більше \unknown через неповний або неоднорідний DDL,
+      але materialization дозволить застосувати declaration-based rules масштабно.
+\item \textbf{H6:} published metadata, native catalog і consistency checks на даних
+      дадуть не тотожні rule decisions.
+\item \textbf{H7:} lineage-aware аналіз матиме вищу applicable coverage на CTE та
+      derived-table queries, ніж \texttt{sqlsure}.
+\end{itemize}
+
+%==================================================================
+\section{Архітектура запропонованої системи}
+%==================================================================
+
+\subsection{Data flow}
+
+\begin{center}
+\begin{tikzpicture}[
+  node distance=7mm and 9mm,
+  every node/.style={font=\sffamily\small},
+  box/.style={draw=rule, rounded corners=2pt, align=center, minimum height=9mm,
+              text width=30mm, fill=soft},
+  corebox/.style={draw=accent!60, rounded corners=2pt, align=center,
+                  minimum height=10mm, text width=34mm, fill=softgreen},
+  arrow/.style={-{Latex[length=2mm]}, thick, draw=accent!70}
+]
+\node[box] (sql) {Gold SQL\\+ dialect};
+\node[box, below=of sql] (ast) {SQLGlot AST};
+\node[box, right=of sql] (native) {Native DB};
+\node[box, right=of ast] (ddl) {DDL / sql\_context};
+\node[box, right=of ddl] (materialize) {Existing DB\\materializer};
+\node[box, below=of native] (catalog) {Catalog reflection};
+\node[corebox, below=of catalog] (context) {Immutable\\SchemaContext};
+\node[corebox, below=of ast] (resolver) {Scope, alias\\and lineage resolver};
+\node[corebox, below=of resolver] (rules) {Tri-state\\rule engine};
+\node[box, right=of rules] (evidence) {Evidence + provenance\\+ risk vector};
+\node[box, below=of evidence] (outputs) {JSONL / DuckDB\\reports};
+
+\draw[arrow] (sql) -- (ast);
+\draw[arrow] (native) -- (catalog);
+\draw[arrow] (ddl) -- (materialize);
+\draw[arrow] (materialize) |- (catalog);
+\draw[arrow] (catalog) -- (context);
+\draw[arrow] (ast) -- (resolver);
+\draw[arrow] (context) -| (resolver);
+\draw[arrow] (resolver) -- (rules);
+\draw[arrow] (rules) -- (evidence);
+\draw[arrow] (evidence) -- (outputs);
+\end{tikzpicture}
+\end{center}
+
+\subsection{Не дублювати materialization}
+
+Наявний lifecycle уже створює database/schema з DDL за відсутності native DB.
+Нова реалізація не переносить цей код у detector. На analyzer boundary:
+
+\begin{enumerate}
+\item normalizer отримує schema/DDL;
+\item adapter canonicalizes DDL і формує stable schema identity;
+\item DB створюється лише за потреби;
+\item \texttt{DbManager} повертає tables і table info;
+\item \texttt{SchemaContextBuilder} freezes facts і кешує context за \texttt{db\_id}
+      або canonical schema hash;
+\item pure detector використовує context без I/O.
+\end{enumerate}
+
+Для Gretel однакові DDL мають дедуплікуватися за canonical hash. Порожня materialized
+DB дозволяє names/types/nullability/PK/FK/unique/index rules, але не data-derived
+claims.
+
+\subsection{Модель контексту}
+
+\begin{lstlisting}[style=pythonstyle]
+@dataclass(frozen=True)
+class ColumnFact:
+    name: str
+    type_raw: str
+    type_family: str
+    nullable: bool | None
+    primary_key: bool
+    unique: bool | None
+    provenance: FactProvenance
+
+@dataclass(frozen=True)
+class TableFact:
+    name: str
+    columns: Mapping[str, ColumnFact]
+    primary_key: tuple[str, ...]
+    unique_keys: tuple[tuple[str, ...], ...]
+    foreign_keys: tuple[ForeignKeyFact, ...]
+    indexes: tuple[IndexFact, ...]
+
+@dataclass(frozen=True)
+class SchemaContext:
+    db_id: str
+    dialect: str
+    source: str
+    tables: Mapping[str, TableFact]
+\end{lstlisting}
+
+\subsection{Provenance і reliability}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{>{\ttfamily}p{4.1cm}YY}
+\toprule
+\normalfont\textbf{Provenance} & \textbf{Що означає} & \textbf{Дозволені висновки} \\
+\midrule
+benchmark\_metadata &
+Факт узято з tables.json або іншого benchmark manifest &
+Declaration-based; missing fact не є доказом відсутності \\
+\shortstack[l]{materialized\_from\\ddl} &
+Catalog створено з DDL без population data &
+Names, types, declared keys, nullability, indexes \\
+native\_catalog &
+Факт прочитано з shipped DB catalog &
+Catalog-level reasoning; ще не доказ data consistency \\
+\shortstack[l]{data\_consistency\\checked} &
+Declared constraint не суперечить поточному instance &
+Підвищена довіра лише для цього snapshot; не універсальний доказ \\
+observed\_only &
+Uniqueness/null absence спостережено в rows, але не declared &
+Supporting evidence; не підмінює logical constraint \\
+\bottomrule
+\end{tabularx}
+\caption{Джерела schema facts та межі інтерпретації.}
+\end{table}
+
+\subsection{Lineage resolver}
+
+Resolver повинен:
+
+\begin{itemize}
+\item будувати lexical scope для кожного SELECT;
+\item відображати alias у base table;
+\item вирішувати qualified та unqualified columns;
+\item виявляти ambiguity, а не вгадувати owner;
+\item переносити output-column lineage через CTE та derived tables;
+\item підтримувати projection aliases, \texttt{USING}, composite keys та nested scopes;
+\item позначати unsupported expression lineage як \unknown.
+\end{itemize}
+
+Це важливіше за додавання десятків rules: помилкова атрибуція колонки робить будь-яке
+schema-aware правило недостовірним.
+
+\subsection{RuleDecision і risk vector}
+
+\begin{lstlisting}[style=pythonstyle]
+@dataclass(frozen=True)
+class RuleDecision:
+    rule_id: str
+    state: Literal["present", "absent", "unknown"]
+    evidence: tuple[Evidence, ...]
+    provenance: tuple[FactProvenance, ...]
+    correctness: RiskLevel | None
+    performance: RiskLevel | None
+    portability: RiskLevel | None
+    maintainability: RiskLevel | None
+    remediation_hint: str | None
+\end{lstlisting}
+
+Legacy Critical/High/Medium/Low залишається лише для backward compatibility. У
+науковому аналізі не слід зводити correctness і performance до одного числа без
+емпірично валідованих ваг.
+
+%==================================================================
+\section{Які наявні rules виграють від schema context}
+%==================================================================
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{3.5cm}
+                  >{\raggedright\arraybackslash}p{2.7cm}
+                  >{\raggedright\arraybackslash}p{7.6cm}}
+\toprule
+\textbf{Наявний rule} & \textbf{Виграш} & \textbf{Schema-aware refinement} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Наявний rule} & \textbf{Виграш} & \textbf{Schema-aware refinement} \\
+\midrule
+\endhead
+NOT IN nullable & Дуже високий &
+Визначити nullability projected expression, включно з outer-join/CASE lineage;
+не flag усі NOT IN автоматично. \\
+Missing GROUP BY & Високий &
+Перевірити PK, composite/UNIQUE NOT NULL keys та functional dependencies;
+розділити correctness і portability. \\
+LIMIT/OFFSET ordering & Високий &
+Не лише наявність ORDER BY, а total order відносно result grain. \\
+Function in WHERE & Високий за наявності metadata &
+Типи, implicit conversion, ordinary/expression indexes; EXPLAIN subset validation. \\
+Cartesian product & Середній &
+Краща alias ownership, FK path evidence, wrong-table/self-reference diagnosis;
+сам Cartesian факт переважно AST-based. \\
+Redundant DISTINCT & Середній--високий &
+PK/unique/FD дозволяють довести, що output уже унікальний. \\
+SELECT * & Середній для severity &
+Розгорнути projection; BLOB/JSON/wide columns підвищують resource risk;
+sensitive metadata може додати policy risk. \\
+Leading wildcard LIKE & Середній для performance &
+Index/collation/type metadata; без індексу не стверджувати «index disabled». \\
+Correlated subquery & Середній &
+Lineage підтверджує реальну correlation; index metadata уточнює performance risk. \\
+NULL comparison & Мінімальний &
+\texttt{= NULL} є некоректною predicate form незалежно від schema. \\
+Unsafe UPDATE/DELETE & Мінімальний &
+Відсутність WHERE визначається AST; schema не змінює основний verdict. \\
+Columns in EXISTS & Мінімальний &
+Projection усередині EXISTS семантично ігнорується; AST достатньо. \\
+\bottomrule
+\caption{Вплив schema context на опублікований UJIT rule set.}
+\end{longtable}
+
+\begin{mustbox}
+Primary article scope: поглибити шість наявних families --- nullable NOT IN,
+Missing GROUP BY, LIMIT/OFFSET total order, Function in WHERE, schema-grounded
+Cartesian/join diagnosis і key-aware Redundant DISTINCT. SELECT *, leading wildcard
+і correlated subquery залишити secondary analyses.
+\end{mustbox}
+
+%==================================================================
+\section{Primary schema-aware rules: формальні ідеї та приклади}
+%==================================================================
+
+\subsection{R1: nullable NOT IN}
+
+\textbf{Required facts:} lineage projected subquery expression, declared nullability,
+null-introducing operators.
+
+\begin{itemize}
+\item \presentstate: expression може бути NULL за declared schema або expression
+      semantics.
+\item \absentstate: expression доведено NOT NULL у цьому scope.
+\item \unknown: unresolved lineage або missing nullability fact.
+\end{itemize}
+
+\begin{lstlisting}[style=sqlstyle]
+SELECT u.id
+FROM users AS u
+WHERE u.id NOT IN (
+  SELECT b.user_id
+  FROM blocked_users AS b
+);
+\end{lstlisting}
+
+Якщо \texttt{blocked\_users.user\_id} nullable, один NULL може зробити predicate
+UNKNOWN для всіх candidate rows. Якщо колонка \texttt{NOT NULL}, AST-only flag
+пригнічується. Якщо projection є CASE або походить із nullable side outer join,
+простого column-level NOT NULL недостатньо.
+
+\subsection{R2: functional-dependency-aware Missing GROUP BY}
+
+\begin{lstlisting}[style=sqlstyle]
+CREATE TABLE customers (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL
+);
+
+SELECT c.id, c.name, COUNT(o.id)
+FROM customers AS c
+LEFT JOIN orders AS o ON o.customer_id = c.id
+GROUP BY c.id;
+\end{lstlisting}
+
+AST-only detector бачить \texttt{c.name} поза GROUP BY. Schema-aware detector
+доводить:
+\[
+\texttt{customers.id} \rightarrow \texttt{customers.name}.
+\]
+Correctness risk стає absent; portability може залишитися dialect-dependent.
+
+Контрприклад:
+
+\begin{lstlisting}[style=sqlstyle]
+SELECT country, city, COUNT(*)
+FROM customers
+GROUP BY country;
+\end{lstlisting}
+
+Якщо \texttt{country} не покриває PK або UNIQUE NOT NULL key, \texttt{city} не є
+функціонально залежною і SQLite може вибрати довільне значення. Для nullable UNIQUE
+потрібна обережність: кілька NULL можуть утворити одну групу. Для composite key
+потрібні всі key columns.
+
+\subsection{R3: total-order-aware LIMIT/OFFSET}
+
+\begin{lstlisting}[style=sqlstyle]
+SELECT id, score
+FROM candidates
+ORDER BY score DESC
+LIMIT 10;
+\end{lstlisting}
+
+Наявність ORDER BY ще не гарантує deterministic top-10: ties за \texttt{score}
+дозволяють різний subset. Якщо \texttt{score} не unique, recommendation:
+\texttt{ORDER BY score DESC, id}. Rule має враховувати result grain після GROUP BY,
+DISTINCT і joins; якщо grain не виведено, verdict \unknown.
+
+\subsection{R4: type/index-aware SARGability}
+
+\begin{lstlisting}[style=sqlstyle]
+SELECT *
+FROM events
+WHERE CAST(user_id AS TEXT) = '42';
+\end{lstlisting}
+
+AST-only rule бачить function/cast. Schema-aware version перевіряє:
+
+\begin{itemize}
+\item actual type family \texttt{user\_id};
+\item implicit/explicit conversion direction;
+\item ordinary або expression index;
+\item dialect-specific coercion;
+\item plan evidence на підтримуваній subset через \texttt{EXPLAIN QUERY PLAN}.
+\end{itemize}
+
+Без індексу не слід стверджувати, що function «заблокувала index». Тоді може
+залишитися computation/portability risk, але не підтверджений index-access defect.
+
+\subsection{R5: schema-grounded Cartesian/join diagnosis}
+
+AST уже знаходить comma joins, \texttt{ON TRUE}, one-sided predicates та missing
+ON. Schema додає:
+
+\begin{itemize}
+\item точну ownership колонок;
+\item expected FK path як evidence;
+\item distinction між wrong key, absent predicate та unknown undeclared relation;
+\item diagnosis wrong-table references.
+\end{itemize}
+
+Відсутній FK не перетворюється на error: це \unknown або unmodeled warning.
+
+\subsection{R6: key-aware Redundant DISTINCT}
+
+DISTINCT можна довести redundant, якщо projected columns містять result key і joins
+не розмножують цей grain. Навпаки, наявність PK базової таблиці не достатня після
+one-to-many join. Потрібні lineage і cardinality propagation.
+
+%==================================================================
+\section{Три нові rules, потрібні для Text-to-SQL}
+%==================================================================
+
+\subsection{N1: aggregate after fan-out або chasm}
+
+\begin{lstlisting}[style=sqlstyle]
+SELECT c.id, SUM(c.credit_limit)
+FROM customers AS c
+JOIN orders AS o ON o.customer_id = c.id
+GROUP BY c.id;
+\end{lstlisting}
+
+Якщо \texttt{customers.id -> orders} є one-to-many, base-row
+\texttt{credit\_limit} повторюється для кожного order. Schema facts доводять row
+multiplication; intent щодо measure усе ще може вимагати review.
+
+\begin{itemize}
+\item \textbf{FANOUT:} aggregate над measure/column із grain, який повторюється join.
+\item \textbf{CHASM:} дві або більше fan-out branches множать одна одну.
+\item \textbf{Не робити:} вважати \texttt{SUM(DISTINCT amount)} універсально безпечним,
+      бо різні rows можуть мати однаковий amount.
+\end{itemize}
+
+Цей rule напряму порівнюється із \texttt{sqlsure} FANOUT/CHASM, але наш експеримент
+додає lineage, provenance, abstention і independent labels.
+
+\subsection{N2: join-key mismatch}
+
+\begin{lstlisting}[style=sqlstyle]
+SELECT *
+FROM orders AS o
+JOIN customers AS c
+  ON o.sales_rep_id = c.customer_id;
+\end{lstlisting}
+
+Якщо schema декларує \texttt{orders.customer\_id -> customers.customer\_id},
+використаний key суперечить declared relationship. Critical correctness risk
+допустимий лише за позитивного evidence. Якщо relationship не declared, система
+повертає \unknown, а не автоматичний error.
+
+Composite FK вважається matched тільки тоді, коли покрито весь key; один правильний
+pair не повинен маскувати другий неправильний predicate.
+
+\subsection{N3: potential multi-row scalar subquery}
+
+\begin{lstlisting}[style=sqlstyle]
+SELECT p.name,
+       (SELECT r.rating
+        FROM reviews AS r
+        WHERE r.product_id = p.id) AS rating
+FROM products AS p;
+\end{lstlisting}
+
+Якщо \texttt{reviews.product\_id} не unique і немає aggregate/LIMIT із
+детермінованим order, scalar subquery може повернути кілька rows. PostgreSQL
+завершиться error; SQLite може використати один рядок, створюючи portability та
+determinism risk.
+
+\subsection{Optional: outer-join null rejection}
+
+\begin{lstlisting}[style=sqlstyle]
+SELECT c.id
+FROM customers AS c
+LEFT JOIN orders AS o ON o.customer_id = c.id
+WHERE o.status = 'paid';
+\end{lstlisting}
+
+WHERE predicate відкидає NULL-extended rows і фактично робить LEFT JOIN подібним до
+INNER JOIN. Це важливий Text-to-SQL risk, але intent-dependent; додавати в primary
+study лише після pilot.
+
+%==================================================================
+\section{Multi-dimensional risk model}
+%==================================================================
+
+\subsection{Чому single severity недостатня}
+
+UJIT справедливо використовував Critical/High/Medium/Low як operational
+prioritization. Schema context дозволяє розділити незалежні наслідки:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{>{\bfseries}p{3cm}YY}
+\toprule
+Вісь & Питання & Приклади \\
+\midrule
+Correctness &
+Чи може query повернути логічно неправильні rows/value? &
+nullable NOT IN, fan-out SUM, wrong join key \\
+Performance &
+Чи є evidence про scan, row explosion або expensive projection? &
+indexed function predicate, wide SELECT *, correlated execution \\
+Portability &
+Чи залежить поведінка від dialect/coercion? &
+bare GROUP BY column, multi-row scalar subquery, type coercion \\
+Maintainability &
+Чи підвищує форма query ризик майбутньої помилки? &
+SELECT *, undeclared join path, ambiguous ownership \\
+\bottomrule
+\end{tabularx}
+\caption{Незалежні risk dimensions.}
+\end{table}
+
+Для кожної осі зберігати evidence-backed level або \unknown. Не публікувати
+композитний quality score, доки ваги не валідовані людьми або downstream outcome.
+
+%==================================================================
+\section{Експериментальний протокол}
+%==================================================================
+
+\subsection{Corpora і версії}
+
+\begin{itemize}
+\item \textbf{Spider 1.0}: primary database-backed corpus, усі доступні partitions;
+      exact source checksum у manifest.
+\item \textbf{BIRD}: відтворити \texttt{dev\_20240627}, який використовував
+      \texttt{sqlsure}, і окремо провести main evaluation на актуальному corrected
+      snapshot, pinned до дати запуску.
+\item \textbf{Gretel synthetic Text-to-SQL}: DDL-derived external-validity та
+      scalability corpus; snapshot/commit, DDL hash і deduplication обов'язкові.
+\end{itemize}
+
+Spider і BIRD є primary study. Gretel звітується окремо; його synthetic SQL не
+називається human gold SQL, а результати не pool-яться з database-backed corpora.
+
+\subsection{Conditions}
+
+\begin{description}[leftmargin=1.5cm,labelwidth=1.1cm]
+\item[C0] AST-only UJIT-compatible mode.
+\item[C1] AST + declared schema facts: benchmark metadata або DDL; за потреби
+          acquisition через materialized empty DB.
+\item[C2] AST + native live catalog shipped database.
+\item[C3] AST + catalog constraints, consistency-checked against populated instance.
+\end{description}
+
+C3 не «доводить» general constraint: він лише показує, що current snapshot не
+суперечить declaration. Для Gretel primary comparison C0/C1; reflection із
+materialized DB є acquisition path для C1, а не незалежним source condition.
+
+\subsection{Development/holdout discipline}
+
+\begin{enumerate}
+\item Розробляти rule logic на synthetic matched fixtures і Spider Train.
+\item Freeze rule specification, severities/risk mapping і code commit.
+\item Evaluate на Spider Dev/Test, corrected BIRD Dev і Gretel snapshot.
+\item Known corrected BIRD/sqlsure cases використовувати лише як external validation
+      після freeze або чесно позначити retrospective subset.
+\end{enumerate}
+
+Це зменшує corpus-guided tuning, яке послаблює як UJIT regression construction, так і
+\texttt{sqlsure} retrospective claims.
+
+\subsection{Baselines}
+
+\begin{enumerate}
+\item \textbf{C0 current analyzer}: exact published rule behavior.
+\item \textbf{sqlsure v0.1.1, commit d1b98e7}: запуск public \texttt{check()} API.
+\item \textbf{sqlsure audit scripts}: окремий результат, не змішувати з checker.
+\item \textbf{DBMS prepare/resolution}: identifier/type hard errors.
+\item \textbf{C++ SqlCheck v1.3}: secondary baseline для відтворюваних overlapping
+      syntax rules.
+\end{enumerate}
+
+\begin{warningbox}
+Не рахувати один глобальний F1 між systems із різними taxonomies. Порівняння
+\texttt{sqlsure} обмежити CROSS\_JOIN, JOIN\_KEY, FANOUT, CHASM та clearly mapped
+propositions. Additivity і sensitive policy не можна оцінювати без однакового
+semantic metadata.
+\end{warningbox}
+
+\subsection{Matched synthetic tests як causal sanity check}
+
+SQL залишається ідентичним, змінюється один schema fact:
+
+\begin{itemize}
+\item nullable $\leftrightarrow$ NOT NULL;
+\item unique $\leftrightarrow$ non-unique;
+\item FK present $\leftrightarrow$ absent;
+\item one-to-one $\leftrightarrow$ one-to-many;
+\item type-compatible $\leftrightarrow$ incompatible;
+\item index absent $\leftrightarrow$ ordinary/expression index.
+\end{itemize}
+
+Syntax-only control rules повинні залишатися інваріантними. Якщо вони змінюються,
+context integration має leakage або implementation bug.
+
+\subsection{Blind human evaluation}
+
+Нова annotation set формується зі страт:
+
+\begin{itemize}
+\item C0 present $\rightarrow$ C1/C2 absent;
+\item C0 absent $\rightarrow$ C1/C2 present;
+\item C1 $\neq$ C2 або C2 $\neq$ C3;
+\item proposed-only та sqlsure-only disagreements;
+\item random unflagged controls;
+\item representative \unknown cases.
+\end{itemize}
+
+Два незалежні SQL/DB reviewers, blind до detector і condition, потім adjudication.
+Label schema:
+
+\begin{enumerate}
+\item підтверджена query-level structural проблема;
+\item valid query, але evidence-backed portability/performance risk;
+\item schema/metadata defect;
+\item intentional/acceptable construction;
+\item unverifiable with available evidence.
+\end{enumerate}
+
+Початковий pilot визначає prevalence positives у strata; фінальний sample size
+обирається через power/precision calculation. Реалістичний орієнтир для focused
+rule-family claims --- 400--600 reviewed cases, але рідкісні classes можуть
+потребувати census усіх findings.
+
+\subsection{Metrics}
+
+\begin{itemize}
+\item context acquisition coverage і parse/resolve coverage;
+\item rule applicability та abstention rate;
+\item retained, suppressed, added і unknown migrations;
+\item finding-level і query-level precision/recall/F1;
+\item false-positive suppression і incremental true positives;
+\item risk-vector migration;
+\item overlap/Jaccard із baselines на matched rules;
+\item inter-annotator agreement ($\kappa$ або Krippendorff's $\alpha$);
+\item review time, throughput, schema-load latency, memory;
+\item per-database clustering і concentration of findings.
+\end{itemize}
+
+Paired binary outcomes: McNemar. Confidence intervals: clustered bootstrap за
+\texttt{db\_id}. Для stratified manual sample: sampling weights. Не трактувати
+queries з однієї DB як незалежні observations.
+
+\subsection{Performance subset}
+
+Для Function-in-WHERE, leading wildcard і SELECT-*:
+
+\begin{enumerate}
+\item зібрати reliable index/type facts;
+\item запустити \texttt{EXPLAIN QUERY PLAN} на підтримуваних SQLite cases;
+\item відділити logical finding від plan-confirmed evidence;
+\item не переносити SQLite plan conclusion на PostgreSQL без окремого experiment.
+\end{enumerate}
+
+%==================================================================
+\section{Schema reliability і query-impact graph}
+%==================================================================
+
+\subsection{Навіщо перевіряти джерело фактів}
+
+Published benchmark metadata, materialized DDL і native catalog можуть розходитись.
+Пропонований audit повинен звітувати:
+
+\begin{itemize}
+\item missing/extra tables і columns;
+\item nullability disagreements;
+\item PK/FK/unique/index disagreements;
+\item declared constraints, порушені current data;
+\item unsupported або failed DDL materialization;
+\item частку query references, які вдалося повністю resolve.
+\end{itemize}
+
+\subsection{Schema-to-query impact graph}
+
+Нова корисна одиниця:
+\[
+\text{schema fact or defect} \longrightarrow
+\{\text{dependent gold queries and rule decisions}\}.
+\]
+
+Наприклад, один missing FK може породити десятки unbacked-join candidates.
+Замість «30 помилок SQL» треба показати «один schema defect, що впливає на 30
+queries». Це запобігає double counting і напряму з'єднує e-Informatica schema
+analyzer із query-level article.
+
+%==================================================================
+\section{Evidence records, counterexamples і відмова від auto-repair}
+%==================================================================
+
+\subsection{Evidence bundle}
+
+Кожний finding повинен містити:
+
+\begin{itemize}
+\item rule id і precise AST location;
+\item resolved table/column lineage;
+\item schema facts і provenance;
+\item reason for \presentstate/\absentstate/\unknown;
+\item risk vector;
+\item short human-readable remediation hint;
+\item analyzer/rule/schema versions.
+\end{itemize}
+
+\subsection{Мінімальні witnesses}
+
+Для кількох correctness rules можна створити невеликі counterexample instances:
+
+\begin{itemize}
+\item один NULL для NOT IN;
+\item два child rows для fan-out;
+\item ties для non-total ORDER BY;
+\item два subquery rows для scalar-subquery risk.
+\end{itemize}
+
+Witness доводить, що risk може матеріалізуватися, але не доводить, що gold SQL не
+відповідає конкретному NL question.
+
+\subsection{Чому не робимо Repair}
+
+Автоматичні rewrites для NOT IN, fan-out, GROUP BY або ORDER BY можуть змінити intent.
+У primary scope:
+
+\begin{itemize}
+\item detector не змінює SQL;
+\item повертає remediation hint;
+\item safe rewrite на кшталт \texttt{= NULL -> IS NULL} залишається future extension;
+\item semantic equivalence checking і repair evaluation потребують окремого study.
+\end{itemize}
+
+%==================================================================
+\section{Implementation blueprint}
+%==================================================================
+
+\subsection{Existing integration points}
+
+\begin{itemize}
+\item \texttt{src/text2sql\_pipeline/analyzers/query\_antipattern/antipattern\_detector.py}
+\item \texttt{.../query\_antipattern/query\_antipattern\_analyzer.py}
+\item \texttt{.../query\_antipattern/antipattern\_registry.py}
+\item \texttt{.../query\_antipattern/metrics.py}
+\item \texttt{src/text2sql\_pipeline/db/manager.py}
+\item \texttt{src/text2sql\_pipeline/db/adapters/base/protocol.py}
+\item \texttt{.../schema\_validation/schema\_validation\_analyzer.py}
+\item \texttt{src/text2sql\_pipeline/output/sinks/duckdb.py}
+\end{itemize}
+
+\subsection{Proposed modules}
+
+\begin{itemize}
+\item \texttt{schema\_context.py}: frozen facts, provenance, reliability.
+\item \texttt{schema\_context\_builder.py}: native/DDL materialized acquisition і cache.
+\item \texttt{scope\_resolver.py}: alias, CTE, derived lineage.
+\item \texttt{rule\_decision.py}: tri-state evidence та risk vector.
+\item \texttt{schema\_aware\_rules.py}: primary schema-dependent families.
+\item \texttt{explain\_evidence.py}: optional supported-plan validation.
+\end{itemize}
+
+\subsection{Backward-compatible API}
+
+\begin{lstlisting}[style=pythonstyle]
+def detect_antipatterns(
+    sql: str,
+    dialect: str = "sqlite",
+    config=None,
+    penalties=None,
+    schema_context: SchemaContext | None = None,
+) -> QueryAntipatternFeatures:
+    ...
+\end{lstlisting}
+
+Якщо context відсутній, C0 behavior зберігається. Schema-required rules не повинні
+мовчки робити AST guess: залежно від pre-specified policy вони повертають \unknown
+або не-applicable decision, який окремо рахується.
+
+\subsection{Tests}
+
+\begin{itemize}
+\item усі наявні AST-only regression tests;
+\item matched schema fixtures;
+\item native DB vs DDL-materialized acquisition equivalence;
+\item cache by \texttt{db\_id}/schema hash;
+\item aliases, ambiguity, CTE shadowing, derived tables;
+\item composite PK/FK/unique keys;
+\item outer joins і null introduction;
+\item SQLite affinity та quoted identifiers;
+\item evidence serialization і DuckDB migrations;
+\item no-row database не є evidence про data null/uniqueness.
+\end{itemize}
+
+\subsection{Implementation phases}
+
+\begin{enumerate}
+\item \textbf{P0 --- Specification freeze:} rule predicates, states, risk dimensions,
+      datasets, baselines, pilot protocol.
+\item \textbf{P1 --- Context foundation:} immutable facts, provenance, index reflection,
+      shared cache, both acquisition paths.
+\item \textbf{P2 --- Resolver:} scopes, aliases, CTE/derived lineage.
+\item \textbf{P3 --- Existing-rule upgrades:} NOT IN та GROUP BY first; then ordering,
+      SARGability, joins, DISTINCT.
+\item \textbf{P4 --- New rules:} fan-out/chasm, join-key mismatch, scalar subquery.
+\item \textbf{P5 --- Outputs/tests:} tri-state evidence, risk vector, DuckDB/reporting.
+\item \textbf{P6 --- Pilot:} Spider Train development + held-out pilot.
+\item \textbf{P7 --- Full study:} C0--C3, baselines, annotation.
+\item \textbf{P8 --- Analysis/article/artifact:} statistics, frozen outputs, paper.
+\end{enumerate}
+
+%==================================================================
+\section{План майбутньої статті}
+%==================================================================
+
+\subsection{Рекомендована назва}
+
+\begin{thesisbox}
+\begin{english}
+\textbf{When Does Schema Context Help? A Controlled Study of Catalog-Grounded SQL
+Auditing for Text-to-SQL Benchmarks}
+\end{english}
+\end{thesisbox}
+
+Альтернативи:
+
+\begin{itemize}
+\item \begin{english}Beyond the AST: Catalog-Grounded Detection of Structural SQL Risks in
+Text-to-SQL Benchmarks\end{english}
+\item \begin{english}From Parse Trees to Catalog Evidence: Measuring the Value of
+Schema Context in Gold-SQL Auditing\end{english}
+\item \begin{english}Schema-Grounded Static Analysis of Text-to-SQL Reference Queries:
+Precision, Abstention, and Cross-Dataset Evidence\end{english}
+\end{itemize}
+
+\subsection{Однореченнєва теза}
+
+\begin{quote}
+Catalog grounding materially changes which structural SQL findings are justified,
+but its value depends on metadata completeness, provenance, and query lineage; a
+reliable auditor must therefore measure both improved precision and principled
+abstention.
+\end{quote}
+
+\subsection{Заплановані внески}
+
+\begin{enumerate}
+\item Context model із provenance/reliability і dual native/DDL acquisition.
+\item Lineage-aware tri-state schema-conditioned rule engine.
+\item Six refined UJIT families та три нові Text-to-SQL-relevant rules.
+\item Controlled C0--C3 study на Spider/BIRD із Gretel DDL stress test.
+\item Blind disagreement labels і fair comparison із \texttt{sqlsure}.
+\item Reproducible artifact із evidence, manifests, rules і analysis scripts.
+\end{enumerate}
+
+\subsection{Abstract blueprint}
+
+\begin{enumerate}
+\item \textbf{Problem:} executable gold SQL може містити risks, яких AST-only або
+      execution-only checks не розрізняють.
+\item \textbf{Gap:} schema-aware systems існують, але incremental value, metadata
+      reliability і abstention систематично не виміряні для reference-query audits.
+\item \textbf{Method:} lineage-aware context, tri-state rules, risk vector, C0--C3.
+\item \textbf{Study:} Spider/BIRD primary, Gretel DDL external validity, sqlsure baseline,
+      blind human labels.
+\item \textbf{Results:} вставити лише після freeze та evaluation: suppression,
+      additions, unknown rates, precision, coverage, runtime.
+\item \textbf{Implication:} benchmark QA має поєднувати AST, trustworthy catalog facts,
+      execution і semantic review, не змішуючи їхні claims.
+\end{enumerate}
+
+\subsection{Section outline}
+
+\begin{enumerate}
+\item Introduction and contributions.
+\item Background and relation to prior work.
+\item Catalog-grounded analysis model.
+\item Schema acquisition, provenance and lineage.
+\item Rule specifications and risk model.
+\item Study design.
+\item Metadata reliability results.
+\item C0--C3 ablation and human accuracy.
+\item Comparison with sqlsure and other baselines.
+\item Cross-dataset results and Gretel stress test.
+\item Discussion, threats and implications.
+\item Conclusion and artifact.
+\end{enumerate}
+
+\subsection{Заплановані figures і tables}
+
+\begin{itemize}
+\item Figure 1: AST + native/DDL catalog architecture.
+\item Figure 2: scope/lineage propagation example.
+\item Figure 3: decision flow \presentstate/\absentstate/\unknown.
+\item Table 1: explicit delta from UJIT/e-Informatica/calibration.
+\item Table 2: rule specifications та required facts.
+\item Table 3: metadata coverage/reliability by corpus.
+\item Table 4: C0--C3 migration matrix.
+\item Table 5: blind precision/recall by rule family.
+\item Table 6: matched overlap with sqlsure.
+\item Table 7: runtime, cache and materialization cost.
+\item Figure 4: schema-defect to affected-query graph.
+\end{itemize}
+
+%==================================================================
+\section{Claims: що можна і чого не можна заявляти}
+%==================================================================
+
+\subsection{Допустимі claims після успішного experiment}
+
+\begin{itemize}
+\item schema context statistically significantly improves precision for specified
+      rule families;
+\item explicit abstention prevents unsupported conclusions under incomplete metadata;
+\item provenance sources lead to measurably different rule decisions;
+\item lineage increases applicable coverage on nested SQL;
+\item proposed system complements sqlsure on non-overlapping nullability, FD, ordering,
+      type та scalar-subquery risks;
+\item DDL materialization enables scalable schema-conditioned auditing without
+      populated databases, with clearly stated limits.
+\end{itemize}
+
+\subsection{Claims, яких слід уникати}
+
+\begin{riskbox}
+\begin{itemize}
+\item «First schema-aware SQL antipattern detector».
+\item «First schema-aware audit of Spider/BIRD gold SQL».
+\item «Every flag is a wrong gold query».
+\item «Missing FK proves a wrong join».
+\item «Observed uniqueness proves a key».
+\item «Execution success validates semantics».
+\item «Gretel має 100\,000 повноцінних populated databases».
+\item «sqlsure has zero false positives» без відтворення його exact protocol.
+\item «Наш method dominates sqlsure» за глобальним score для різних taxonomies.
+\item «Schema awareness solves NL--SQL intent mismatch».
+\end{itemize}
+\end{riskbox}
+
+%==================================================================
+\section{Threats to validity}
+%==================================================================
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{4cm}
+                  >{\raggedright\arraybackslash}p{9.8cm}}
+\toprule
+\textbf{Threat} & \textbf{Mitigation} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Threat} & \textbf{Mitigation} \\
+\midrule
+\endhead
+Missing constraints &
+Absence $\rightarrow$ \unknown; provenance і coverage reporting. \\
+Incorrect declarations &
+Compare metadata/native catalog; consistency checks; schema-defect label. \\
+SQLite permissive typing &
+Coarse type families; portability axis; no universal correctness claim. \\
+Current data cannot prove constraints &
+Separate declared, data-consistent і observed-only facts. \\
+Intent unknown &
+Label structural proposition, not whole NL--SQL correctness. \\
+Correlated queries per DB &
+Clustered inference by \texttt{db\_id}. \\
+Rule tuning on known cases &
+Synthetic/Spider Train development; freeze; held-out BIRD/Spider evaluation. \\
+Gretel duplication and heterogeneity &
+DDL and canonical SQL hashes; separate reporting. \\
+Baseline taxonomy mismatch &
+Matched rules only; pin versions and parser coverage. \\
+Reviewer bias &
+Blind dual review and adjudication. \\
+Publication overlap &
+Explicit relation-to-prior-work section; no recycled headline results. \\
+Rapidly changing related work &
+Repeat literature and sqlsure status search immediately before submission. \\
+\bottomrule
+\caption{Основні threats і mitigations.}
+\end{longtable}
+
+%==================================================================
+\section{Decision gates}
+%==================================================================
+
+\begin{description}[leftmargin=1.7cm,labelwidth=1.25cm]
+\item[G1] Metadata coverage достатнє для заявлених rules. Інакше primary scope
+звужується до Spider/BIRD.
+\item[G2] Pilot NOT IN + join/cardinality показує precision/abstention improvement,
+а не лише інші counts.
+\item[G3] Resolver проходить nested/alias/composite-key fixture suite без silent guesses.
+\item[G4] Є достатньо позитивів для human evaluation кожної headline family; рідкісні
+classes подаються descriptive.
+\item[G5] sqlsure comparison відтворюваний на pinned commit і однакових inputs.
+\item[G6] Abstract не містить старих UJIT/e-Informatica чисел як нових results.
+\item[G7] Перед submission перевірено, чи не з'явилась sqlsure paper/preprint.
+\end{description}
+
+\begin{warningbox}
+Якщо G2 не проходить, це не автоматично провал. Можлива чесна negative-result study
+або tool paper про те, що incomplete schema metadata дає менший виграш, ніж очікувалося.
+Але не слід наперед писати сильний abstract без pilot evidence.
+\end{warningbox}
+
+%==================================================================
+\section{Artifact і reproducibility checklist}
+%==================================================================
+
+\begin{multicols}{2}
+\begin{itemize}
+\item pinned code commit;
+\item dataset/version manifest;
+\item checksums;
+\item DDL normalization version;
+\item schema-context serialization;
+\item rule specifications;
+\item matched fixtures;
+\item baseline wrappers;
+\item sqlsure pinned snapshot;
+\item annotation guideline;
+\item blinded labels;
+\item adjudication log;
+\item statistical scripts;
+\item raw migration matrices;
+\item runtime environment;
+\item generated reports;
+\item known limitations;
+\item relation-to-prior-work statement.
+\end{itemize}
+\end{multicols}
+
+%==================================================================
+\section{Практичний порядок наступних дій}
+%==================================================================
+
+\begin{enumerate}
+\item Визначити canonical code repository/branch і freeze C0 behavior.
+\item Зробити schema feasibility inventory для Spider, BIRD, Gretel.
+\item Реалізувати context builder з native та DDL-materialized paths.
+\item Реалізувати resolver до додавання rules.
+\item Зробити matched pilot для NOT IN і join/cardinality.
+\item Прогнати decision gates G1--G3.
+\item Додати решту primary rules і outputs.
+\item Freeze specifications і evaluation commit.
+\item Запустити C0--C3 та pinned baselines.
+\item Сформувати blind disagreement sample.
+\item Провести review/adjudication і statistics.
+\item Написати Results лише після завершення аналізу.
+\item Випустити artifact разом із paper/preprint.
+\end{enumerate}
+
+%==================================================================
+\section{Ключові джерела та посилання}
+%==================================================================
+
+\begin{enumerate}
+\item Sabadosh, V. M., Kotsovsky, V. M. (2026).
+  \href{https://doi.org/10.23939/ujit2026.01.135}
+  {\textit{Automated Detection and Comparative Analysis of SQL Antipatterns in
+  Text-to-SQL Datasets}}. Ukrainian Journal of Information Technology, 8(1), 135--143.
+  \href{https://science.lpnu.ua/sites/default/files/journal-paper/2026/apr/42369/15sabadoshkocovskiy135-143.pdf}{PDF}.
+\item Dintyala, P., Narechania, A., Arulraj, J. (2020).
+  \href{https://doi.org/10.1145/3318464.3389754}
+  {\textit{SQLCheck: Automated Detection and Diagnosis of SQL Anti-Patterns}}.
+  ACM SIGMOD.
+\item Arora, T. (2026).
+  \href{https://github.com/sqlsure/sqlsure}{\texttt{sqlsure}: Semantic inspector for SQL},
+  software artifact v0.1.1.
+  \href{https://github.com/sqlsure/sqlsure/tree/d1b98e741f848ce7d756ee1d672e206d6ec39daa}
+  {Frozen snapshot used in this plan}.
+\item Yu, T., et al. (2018).
+  \href{https://doi.org/10.18653/v1/D18-1425}
+  {\textit{Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain
+  Semantic Parsing and Text-to-SQL Task}}.
+\item Li, J., et al. (2023).
+  \href{https://proceedings.neurips.cc/paper_files/paper/2023/hash/83fc8fab1710363050bbd1d4b8cc0021-Abstract-Datasets_and_Benchmarks.html}
+  {\textit{Can LLM Already Serve as a Database Interface? A Big Bench for
+  Large-Scale Database Grounded Text-to-SQLs}}.
+\item Liu, X., et al. (2025).
+  \href{https://doi.org/10.1145/3711896.3737427}
+  {\textit{NL2SQL-BUGs: A Benchmark for Detecting Semantic Errors in NL2SQL
+  Translation}}.
+\item SQLGlot contributors.
+  \href{https://github.com/tobymao/sqlglot}{\textit{SQLGlot: Python SQL Parser and
+  Transpiler}}.
+\item Gretel.ai.
+  \href{https://huggingface.co/datasets/gretelai/synthetic_text_to_sql}
+  {\textit{synthetic\_text\_to\_sql dataset}}.
+\end{enumerate}
+
+\vfill
+\begin{center}
+\footnotesize\sffamily\color{accent}
+Окремий planning artifact. Не замінює наявний FullArticlePlan для
+calibration/reconciliation study.
+\end{center}
+
+\end{document}
