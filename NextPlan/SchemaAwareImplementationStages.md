@@ -7,7 +7,7 @@
 - використовував типи, nullability, PK, FK, UNIQUE та індекси;
 - коректно зв’язував AST-вирази з таблицями й колонками;
 - підтверджував, спростовував або не робив висновок за відсутності доказів;
-- повертав evidence і незалежний risk vector;
+- повертав evidence, provenance/reliability та скалярну severity;
 - підтримував контрольоване порівняння C0–C3 для наступної статті;
 - повністю зберігав поточну AST-only поведінку як baseline C0.
 
@@ -67,20 +67,16 @@ Rule engine отримує лише:
 
 Нові schema-only правила у C0 отримують `not_evaluated`, а не `absent`.
 
-### 2.4. Risk vector
+### 2.4. Скалярна severity та quality score
 
-Ризик оцінюється незалежно за напрямами:
+Для рішення `present` правило повертає одну скалярну severity:
+`critical|high|medium|low`. Default і condition/reason-specific mapping версіонуються
+разом із rule specification та можуть перевизначатися конфігурацією експерименту.
+Стани `absent`, `unknown` і `not_applicable` не мають severity.
 
-```json
-{
-  "correctness": "none|low|medium|high|unknown",
-  "performance": "none|low|medium|high|unknown",
-  "portability": "none|low|medium|high|unknown",
-  "maintainability": "none|low|medium|high|unknown"
-}
-```
-
-Єдиний Critical/High/Medium/Low severity залишається лише для backward compatibility.
+Quality score залишається конфігурованим compatibility-показником:
+`max(0, 100 - sum(configured_penalty(severity)))`. Decision state, evidence,
+provenance і reliability зберігаються незалежно від severity та quality score.
 
 ### 2.5. Provenance і reliability не змішуються
 
@@ -273,7 +269,8 @@ src/text2sql_antipattern/
 - `LineageBinding`;
 - `RuleDecision`;
 - `DecisionEvidence`;
-- `RiskVector`;
+- `ScalarSeverity`;
+- `QualityScoreConfig`;
 - `EvaluationStatus`.
 
 Кожне рішення повинно містити:
@@ -283,7 +280,7 @@ src/text2sql_antipattern/
 - decision state;
 - reason code;
 - evidence references;
-- risk vector;
+- scalar severity або `null`;
 - condition;
 - schema-context version;
 - resolver version.
@@ -293,7 +290,7 @@ src/text2sql_antipattern/
 - deterministic JSON serialization;
 - `present` і `absent` завжди мають evidence;
 - `unknown` завжди має reason code;
-- `not_applicable` не має risk score;
+- `not_applicable` не має scalar severity;
 - empty collection не використовується як невідома відсутність факту;
 - conflicted fact не породжує впевнений висновок без explicit policy.
 
@@ -379,7 +376,8 @@ src/text2sql_antipattern/
 
 2. `functional_dependency_group_by`
    - демонструє використання PK/UNIQUE/composite key;
-   - окремо оцінює correctness і portability.
+   - reason/evidence розрізняють functional-dependency і dialect-portability факти,
+     а результат має одну scalar severity.
 
 3. `scalar_subquery_multiplicity`
    - демонструє нове finding, якого не було у C0;
@@ -394,7 +392,7 @@ src/text2sql_antipattern/
 1. candidate extraction з AST;
 2. lineage resolution;
 3. condition-specific decision;
-4. evidence і risk mapping.
+4. evidence і scalar severity mapping.
 
 ### Acceptance criteria
 
@@ -453,7 +451,8 @@ LIMIT 10
 - кожне правило має versioned proposition;
 - C0 і schema-aware умови порівнюють однакову proposition або явно позначені як різні;
 - incomplete facts дають `unknown`;
-- correctness/performance/portability не змішуються в один severity.
+- decision/reason/evidence не виводяться із severity;
+- кожне `present` рішення має одну конфігуровану scalar severity.
 
 ## Stage 7 — Нові schema-aware rule families
 
@@ -608,7 +607,7 @@ Schema facts доводять можливість multiplicity, але не з�
 - rule specifications;
 - condition definitions;
 - resolver versions;
-- risk rubric;
+- scalar severity та quality-score rubric;
 - manifests і checksums;
 - annotation guideline;
 - sampling plan;

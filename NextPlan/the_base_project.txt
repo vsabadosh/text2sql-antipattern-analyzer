@@ -1,1 +1,55 @@
+Schema-aware work backup before porting database materialization
+================================================================
+
+Created: 2026-08-24
+
+Current project
+---------------
+Repository:
+/Users/vsabadosh/projects/PERSONAL/LLM/text2sql-antipattern-analyzer
+
+Branch:
+feature/schema-aware-antipattern-analyzer
+
+Git shelf:
+stash@{0}
+
+Immutable shelf commit:
+30cc7c9a932640fd0338970ea9c4996262e68223
+
+Shelf message:
+schema-aware stages 0-11 before base materialization 2026-08-24
+
+The shelf contains all tracked and untracked files that existed before the
+database-materialization port. After creating the shelf, it was applied back
+with --index so work can continue while the shelf remains as a recovery point.
+
+Inspect:
+git stash show --stat --include-untracked 30cc7c9a932640fd0338970ea9c4996262e68223
+
+Restore into a clean worktree:
+git stash apply --index 30cc7c9a932640fd0338970ea9c4996262e68223
+
+Use "apply", not "pop", until the port has been verified.
+
+Base project used as the source reference
+-----------------------------------------
 /Users/vsabadosh/projects/PERSONAL/LLM/text2sql-dataset-analyzer
+
+Relevant base-project flow:
+- configs/pipeline.example.yaml: sourceDb.endpoint
+- src/text2sql_pipeline/normalizers/db_identity_assign.py
+- src/text2sql_pipeline/db/manager.py
+- src/text2sql_pipeline/db/adapters/base/sa_file_base.py
+- src/text2sql_pipeline/db/adapters/sqlite_sa.py
+
+Spider assets
+-------------
+Database root:
+/Users/vsabadosh/projects/PERSONAL/llm_tuning/spiderNew/database
+
+Expected native database path:
+{database_root}/{db_id}/{db_id}.sqlite
+
+Expected DDL fallback path:
+{database_root}/{db_id}/schema.sql
